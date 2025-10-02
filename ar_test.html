@@ -1,31 +1,85 @@
 <!DOCTYPE html>
 <html>
 <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
     <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
+    <title>ARキャラクター表示</title>
 </head>
-<body style='margin : 0px; overflow: hidden;'>
+<body style='margin: 0px; overflow: hidden;'>
 
-    <a-scene embedded arjs>
+    <a-scene 
+        embedded 
+        arjs="sourceType: webcam; debugUIEnabled: false;"
+        vr-mode-ui="enabled: false"
+        device-orientation-permission-ui="enabled: false">
         
         <a-assets>
-            <img id="characterTexture" src="shinshaku_takasugi_1.png">
+            <img id="characterTexture" src="shinshaku_takasugi_1.png" crossorigin="anonymous">
         </a-assets>
 
-        <a-marker-camera preset='pattern' url='[Raw URL]'>
+        <!-- マーカー検出時のキャラクター表示 -->
+        <a-marker 
+            preset='hiro' 
+            raycaster="objects: .clickable"
+            emitevents="true"
+            cursor="fuse: false; rayOrigin: mouse;"
+            id="markerA">
             
-            <a-entity rotation="90 0 0">
-
+            <!-- キャラクター表示用のエンティティ -->
+            <a-entity id="character-container" rotation="-90 180 0">
                 <a-plane 
-                    
-                    width="1.0" height="1.67"          position="0 0.835 0"               rotation="180 180 0"               material="src: #characterTexture; transparent: true; alphaTest: 0.5; side: double;"
+                    id="character-plane"
+                    width="1.0" 
+                    height="1.67"
+                    position="0 0.835 0"
+                    rotation="0 0 0"
+                    material="src: #characterTexture; transparent: true; alphaTest: 0.5; side: double;"
+                    class="clickable"
+                    animation="property: rotation; to: 0 360 0; loop: true; dur: 10000; pauseEvents: click; resumeEvents: click"
                     >
                 </a-plane>
             </a-entity>
             
-        </a-marker-camera>
+        </a-marker>
 
+        <!-- カメラ -->
         <a-entity camera></a-entity>
     </a-scene>
+
+    <!-- JavaScript for interactions -->
+    <script>
+        // マーカー検出時のイベント処理
+        const marker = document.querySelector('#markerA');
+        const character = document.querySelector('#character-plane');
+
+        marker.addEventListener('markerFound', function() {
+            console.log('マーカーが検出されました');
+            // キャラクター登場アニメーション
+            character.setAttribute('animation', {
+                property: 'scale',
+                from: '0 0 0',
+                to: '1 1 1',
+                dur: 1000,
+                easing: 'easeOutElastic'
+            });
+        });
+
+        marker.addEventListener('markerLost', function() {
+            console.log('マーカーが見失われました');
+        });
+
+        // キャラクタークリック時のアニメーション
+        character.addEventListener('click', function() {
+            this.setAttribute('animation', {
+                property: 'rotation',
+                from: '0 0 0',
+                to: '0 360 0',
+                dur: 2000,
+                loop: 1
+            });
+        });
+    </script>
 </body>
 </html>
