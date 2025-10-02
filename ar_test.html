@@ -20,13 +20,15 @@
     <!-- テスト用に preset="hiro" を使う（本番は pattern URL に差し替え） -->
     <a-marker preset="hiro">
       <!-- 外側に -90deg をかけない（寝る原因） -->
-      <a-plane id="character"
-               position="0 0.835 0.05"
-               rotation="0 0 0"
-               width="1"
-               height="1.67"
-               material="src: #characterTexture; transparent: true; alphaTest: 0.5;">
-      </a-plane>
+
+<a-plane 
+   position="0 0.835 0.05"
+   rotation="90 0 0"
+   width="1"
+   height="1.67"
+   material="src: #characterTexture; transparent: true; alphaTest: 0.5;">
+</a-plane>
+
     </a-marker>
 
     <!-- 通常のカメラ -->
