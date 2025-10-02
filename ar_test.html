@@ -16,8 +16,8 @@
                     // 2. ラッパーエンティティに正しい直立回転を適用
                     const wrapper = marker.querySelector('a-entity');
                     if (wrapper) {
-                        // 垂直に立てるX:90、裏表を修正するY:180 を適用
-                        wrapper.setAttribute('rotation', '90 180 0');
+                        // ****【修正点】直立 (-90)と鏡面反転修正 (Z:180)を適用****
+                        wrapper.setAttribute('rotation', '-90 0 180');
                     }
                 });
 
