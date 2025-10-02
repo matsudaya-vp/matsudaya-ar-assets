@@ -1,28 +1,36 @@
 <!DOCTYPE html>
-<html>
+<html lang="ja">
 <head>
-    <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
-    <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0, user-scalable=no" />
+  <title>AR Character - Test</title>
+
+  <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+  <!-- 安定 CDN 版を推奨 -->
+  <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar.js"></script>
 </head>
-<body style='margin : 0px; overflow: hidden;'>
+<body style="margin:0; overflow:hidden;">
+  <!-- debugUIEnabled:true にすればデバッグ情報が見えます -->
+  <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false;">
+    <a-assets>
+      <!-- crossorigin を付けると外部配信にも対応しやすい -->
+      <img id="characterTexture" src="shinshaku_takasugi_1.png" crossorigin="anonymous">
+    </a-assets>
 
-    <a-scene embedded arjs>
-        
-        <a-assets>
-            <img id="characterTexture" src="shinshaku_takasugi_1.png">
-        </a-assets>
+    <!-- テスト用に preset="hiro" を使う（本番は pattern URL に差し替え） -->
+    <a-marker preset="hiro">
+      <!-- 外側に -90deg をかけない（寝る原因） -->
+      <a-plane id="character"
+               position="0 0.835 0.05"
+               rotation="0 0 0"
+               width="1"
+               height="1.67"
+               material="src: #characterTexture; transparent: true; alphaTest: 0.5;">
+      </a-plane>
+    </a-marker>
 
-        <a-marker-camera preset='pattern' url='[Raw URL]'>
-            
-            <a-plane 
-                
-                width="1.0" height="1.67"          position="0 0.835 -0.05"           rotation="-90 0 0"                 material="src: #characterTexture; transparent: true; alphaTest: 0.5;"
-                >
-            </a-plane>
-            
-        </a-marker-camera>
-
-        <a-entity camera></a-entity>
-    </a-scene>
+    <!-- 通常のカメラ -->
+    <a-entity camera></a-entity>
+  </a-scene>
 </body>
 </html>
