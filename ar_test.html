@@ -4,34 +4,7 @@
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
     <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
     
-    <script>
-        AFRAME.registerComponent('fix-marker-rotation', {
-            init: function() {
-                const marker = this.el;
-                
-                marker.addEventListener('markerFound', function() {
-                    // 1. マーカーの向きを強制的に水平・正面 (0, 0, 0) にリセット
-                    marker.object3D.rotation.set(0, 0, 0); 
-    
-                    // 2. ラッパーエンティティに正しい直立回転を適用
-                    const wrapper = marker.querySelector('a-entity');
-                    if (wrapper) {
-                        // ****【修正点】直立 (-90)と鏡面反転修正 (Z:180)を適用****
-                        wrapper.setAttribute('rotation', '-90 0 180');
-                    }
-                });
-
-                marker.addEventListener('markerLost', function() {
-                    // 必要に応じてリセット
-                    const wrapper = marker.querySelector('a-entity');
-                    if (wrapper) {
-                         wrapper.setAttribute('rotation', '0 0 0');
-                    }
-                });
-            }
-        });
-    </script>
-</head>
+    </head>
 <body style='margin : 0px; overflow: hidden;'>
 
     <a-scene embedded arjs>
@@ -40,14 +13,14 @@
             <img id="characterTexture" src="shinshaku_takasugi_1.png">
         </a-assets>
 
-        <a-marker-camera preset='pattern' url='[Raw URL]' fix-marker-rotation>
+        <a-marker-camera preset='pattern' url='[Raw URL]'>
             
-            <a-entity rotation="0 0 0">
+            <a-entity rotation="180 0 0">
 
                 <a-plane 
                     
                     width="1.0" height="1.67"          position="0 0.835 0"               rotation="0 0 0"                   material="src: #characterTexture; transparent: true; alphaTest: 0.5; side: double;"
-                    >
+                    look-at="[camera]"                 >
                 </a-plane>
             </a-entity>
             
