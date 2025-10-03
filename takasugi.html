@@ -3,45 +3,46 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>中央切り出し iPhone X/11/12 縦長撮影2228</title>
+<title>中央切り出し iPhone X/11/12 縦長撮影2235</title>
 <style>
   body { margin:0; overflow:hidden; background:#000; }
-  /* スマホ画面にベタ表示 */
+  
+  /* 1. スマホ画面にベタ表示 (変更なし: 画面全体を覆う) */
   #video-feed, #character-overlay {
     position:fixed; top:0; left:0; width:100%; height:100%; object-fit:cover;
     z-index:1;
   }
   #character-overlay { z-index:2; }
   
-  /* --- UIコンテナの修正 --- */
+  /* 2. UIコンテナの修正: 高さを削除し、中央寄せと位置の指定のみにする */
   #ui-container {
     position:fixed; 
     bottom:0; 
     width:100%; 
-    /* 縦方向のスペースを確保し、中央に配置するためFlexboxを使用 */
-    height: 100px; /* UI領域の高さを指定（例として100px） */
+    /* height, align-items を削除し、画面全体を覆う要素を邪魔しないようにする */
     display:flex; 
-    justify-content:center; /* 横方向の中央配置 */
-    align-items:center; /* 縦方向の中央配置 */
+    justify-content:center; /* 横方向の中央配置は維持 */
     z-index:3;
-    /* 背景を少し透過させて見やすくする */
-    background: rgba(0, 0, 0, 0.3);
+    /* 透過背景も削除（ボタン自身に影があるため） */
+    /* background: rgba(0, 0, 0, 0.3); */
   }
   
-  /* --- 撮影ボタンの修正 --- */
+  /* 3. 撮影ボタンの修正: 大きさを維持しつつ、画面下端から少し浮かせる */
   #capture-button {
-    /* パディングを大きくしてボタンのサイズを拡大 */
+    /* サイズ拡大はそのまま */
     padding: 25px 50px; 
-    font-size: 1.8em; /* フォントサイズを拡大 */
+    font-size: 1.8em; 
     
     border-radius:50px; 
     cursor:pointer; 
     
-    /* 目立つように白背景に濃い色を適用 */
     background:#fff; 
     color:#333;
-    border:4px solid #333; /* 枠線を太くする */
-    box-shadow:0 6px 12px rgba(0,0,0,0.4); /* 影を濃くする */
+    border:4px solid #333; 
+    box-shadow:0 6px 12px rgba(0,0,0,0.4); 
+    
+    /* 画面下端からの余白を追加（ボタンを画面中央にセンタリングではなく、画面下端から浮かせる） */
+    margin-bottom: 20px;
   }
 </style>
 </head>
@@ -51,6 +52,7 @@
 <div id="ui-container"><button id="capture-button">📸 撮影</button></div>
 
 <script>
+// (JavaScript部分は変更がないため省略します。前回のコードと全く同じです)
 const video = document.getElementById('video-feed');
 const overlay = document.getElementById('character-overlay');
 const captureButton = document.getElementById('capture-button');
