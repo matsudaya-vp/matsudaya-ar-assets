@@ -5,36 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>高杉晋作 - 幕末AR写真</title>
     
-    <style>
+<style>
         body { margin: 0; overflow: hidden; background-color: #000; }
         
-        /* 1. カメラ映像を画面いっぱいに表示 */
+        /* 1. カメラ映像を画面いっぱいに表示 (修正箇所) */
         #video-feed {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            position: fixed; top: 0; left: 0; 
+            /* 🌟🌟🌟 修正: width/heightをmin-width/min-heightに変更 🌟🌟🌟 */
+            min-width: 100%; min-height: 100%; 
             object-fit: cover; /* 画面いっぱいに広げる */
             transform: scaleX(-1); /* 自撮り感覚で鏡像反転 */
         }
-
-        /* 2. キャラクター画像を中央に固定配置 */
-        #character-overlay {
-            position: fixed; 
-            top: 50%; left: 50%;
-            transform: translate(-50%, -50%); /* 中央寄せ */
-            width: 70vw; /* 画面幅の70%のサイズ */
-            max-width: 500px;
-            z-index: 10;
-        }
-
-        /* 3. UI（撮影ボタン）のスタイル */
-        #ui-container {
-            position: fixed; bottom: 0; left: 0; width: 100%;
-            display: flex; justify-content: center; padding: 20px; z-index: 20;
-        }
-        #capture-button {
-            padding: 15px 30px; font-size: 1.2em; background-color: #ffffff;
-            color: #333333; border: 2px solid #333333; border-radius: 50px;
-            cursor: pointer; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-        }
+        /* ... 後略 ... */
     </style>
 </head>
 <body>
