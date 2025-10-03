@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>高杉晋作 -10)</title>
+    <title>高杉晋作 - 3分割透過合成 (最終版)</title>
     <style>
         body { margin: 0; overflow: hidden; background: #000; }
         
@@ -18,21 +18,19 @@
         /* 2. キャラクターオーバーレイのコンテナ */
         #character-container {
             position: absolute;
-            top: 0; /* JSで動的に設定されますが、初期値として上端に固定 */
+            top: 0; /* JSで上端または中央に設定 */
             left: 50%; 
-            transform: translateX(-50%);
+            transform: translateX(-50%); /* 水平中央揃え */
             
             /* 【重要】JSで幅を正確に設定するため、CSSは初期設定のみ */
-            width: 100%; /* 初期値 */
+            width: 100%;
             max-width: 100vw;
             max-height: 100vh;
-            overflow: hidden; /* 見切れを防ぐ */
+            overflow: hidden; 
             
             z-index: 2;
             pointer-events: none;
-            
-            /* 3つの画像を垂直に並べるための設定 */
-            display: block; /* Flexboxを使わず、標準的なブロック要素として配置 */
+            display: block; /* Flexboxを使わず、ブロック要素として配置 */
         }
         
         /* 3. 3つのキャラクター画像 */
@@ -91,7 +89,6 @@
 
         // ライブ表示のサイズ調整関数
         function adjustOverlaySize() {
-            // 画像が未ロードの場合は実行しない
             if (!imgTop.naturalWidth || !imgCenter.naturalWidth || !imgBottom.naturalWidth) {
                  return;
             }
@@ -99,7 +96,7 @@
             // 自然なサイズから結合後の全体アスペクト比を計算
             const naturalWidth = imgCenter.naturalWidth;
             const totalNaturalHeight = imgTop.naturalHeight + imgCenter.naturalHeight + imgBottom.naturalHeight;
-            const imageRatio = naturalWidth / totalNaturalHeight; // 幅/高さ
+            const imageRatio = naturalWidth / totalNaturalHeight;
 
             const screenWidth = window.innerWidth;
             const screenHeight = window.innerHeight;
@@ -121,7 +118,7 @@
                 container.style.top = `0`;
                 container.style.transform = `translateX(-50%)`;
             } else {
-                // 画像が画面内に収まる場合（横長、または通常の縦横比）は、中央に配置
+                // 画像が画面内に収まる場合は、中央に配置
                 container.style.top = `50%`;
                 container.style.transform = `translate(-50%, -50%)`;
             }
@@ -134,7 +131,6 @@
         function imageLoaded() {
             loadedCount++;
             if (loadedCount === totalImages) {
-                // すべての画像がロード完了したら、サイズ調整とリサイズイベントの登録を行う
                 adjustOverlaySize();
                 window.addEventListener('resize', adjustOverlaySize);
             }
@@ -149,7 +145,7 @@
         });
 
         // ----------------------------------------------------------------
-        // 2. カメラフィードの開始（既存と同じ）
+        // 2. カメラフィードの開始
         // ----------------------------------------------------------------
 
         navigator.mediaDevices.getUserMedia({
@@ -159,7 +155,7 @@
         }).catch(err => alert("カメラエラー: " + err));
 
         // ----------------------------------------------------------------
-        // 3. 撮影ロジック (既存のCanvas描画ロジック)
+        // 3. 撮影ロジック (Canvas描画)
         // ----------------------------------------------------------------
         
         captureButton.addEventListener('click', () => {
