@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>高杉晋作 - 2</title>
+  <title>高杉晋作 - 3</title>
   <style>
     body { margin: 0; overflow: hidden; background: #000; }
     
@@ -13,7 +13,7 @@
       object-fit: cover; z-index: 1;
     }
     
-    /* ★★★ 修正箇所: 画像を背景として扱い、余白を白で塗りつぶす ★★★ */
+    /* ★★★ 修正箇所: 背景色（白）を削除し、透明な状態に戻す ★★★ */
     #character-overlay {
       position: fixed;
       top: 0; left: 0;
@@ -22,8 +22,8 @@
       z-index: 2; 
       pointer-events: none;
       
-      /* 画像が見切れた際に見える背景色（塗りつぶしの色） */
-      background-color: #ffffff; 
+      /* ！！！背景色を削除します。これによりカメラ映像が見えるようになります ！！！ */
+      /* background-color: #ffffff; */ /* ← この行を削除/コメントアウト */
       
       /* 画像ファイルと表示設定 */
       background-image: url('pf-takasugi.png');
@@ -55,8 +55,6 @@
 
   <script>
     const video = document.getElementById('video-feed');
-    // const overlay = document.getElementById('character-overlay'); // <img>要素ではないため削除
-
     const captureButton = document.getElementById('capture-button');
 
     navigator.mediaDevices.getUserMedia({
@@ -78,12 +76,10 @@
       ctx.drawImage(video, 0, 0, w, h);
 
       // 2. キャラ画像（pf-takasugi.png）をロードして描画する
-      // DOM上の<img>から取得できなくなったため、新しくImageオブジェクトを作成
       const img = new Image();
-      img.crossOrigin = 'Anonymous'; // クロスオリジンポリシー対策
+      img.crossOrigin = 'Anonymous'; 
       img.src = 'pf-takasugi.png';
 
-      // 画像のロード完了を待って描画・保存を実行
       img.onload = () => {
         const imgRatio = img.naturalWidth / img.naturalHeight;
         const screenRatio = w / h;
@@ -106,6 +102,7 @@
         }
 
         // 3. 余白を白で塗りつぶす (撮影後の画像にも白い余白を作る)
+        // ！！！ CSSで背景を透明にした分、このJSの塗りつぶしが非常に重要です ！！！
         ctx.fillStyle = "#ffffff";
         
         // 上下余白
@@ -131,7 +128,6 @@
         link.click();
       };
       
-      // 画像のロードに失敗した場合の処理（任意）
       img.onerror = () => {
         console.error("画像ファイル 'pf-takasugi.png' のロードに失敗しました。");
         alert("キャラクター画像の表示に問題が発生しました。");
