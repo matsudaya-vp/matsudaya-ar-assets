@@ -3,46 +3,31 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>高杉晋作 - 中央透過（1）</title>
+  <title>高杉晋作 - 中央透過（2）</title>
   <style>
-    body {
-      margin: 0;
-      overflow: hidden;
-      background-color: #000;
-    }
+    body { margin: 0; overflow: hidden; background: #000; }
     #video-feed {
-      position: fixed;
-      top: 0; left: 0;
+      position: fixed; top: 0; left: 0;
       width: 100%; height: 100%;
-      object-fit: cover;
-      z-index: 1;
+      object-fit: cover; z-index: 1;
     }
     #character-overlay {
       position: fixed;
       top: 50%; left: 50%;
       transform: translate(-50%, -50%);
-      max-width: 100vw;
-      max-height: 100vh;
-      z-index: 2;
-      pointer-events: none;
+      max-width: 100vw; max-height: 100vh;
+      z-index: 2; pointer-events: none;
     }
     #ui-container {
-      position: fixed;
-      bottom: 0; left: 0;
-      width: 100%;
-      display: flex; justify-content: center;
-      padding: 20px;
-      z-index: 3;
+      position: fixed; bottom: 0; left: 0;
+      width: 100%; display: flex; justify-content: center;
+      padding: 20px; z-index: 3;
     }
     #capture-button {
-      padding: 15px 30px;
-      font-size: 1.2em;
-      background-color: #fff;
-      color: #333;
-      border: 2px solid #333;
-      border-radius: 50px;
-      cursor: pointer;
-      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+      padding: 15px 30px; font-size: 1.2em;
+      background: #fff; color: #333;
+      border: 2px solid #333; border-radius: 50px;
+      cursor: pointer; box-shadow: 0 4px 8px rgba(0,0,0,0.2);
     }
   </style>
 </head>
@@ -57,11 +42,7 @@
     const captureButton = document.getElementById('capture-button');
 
     navigator.mediaDevices.getUserMedia({
-      video: {
-        facingMode: "environment",
-        width: { ideal: 1920 },
-        height: { ideal: 1080 }
-      }
+      video: { facingMode: "environment", width: { ideal: 1920 }, height: { ideal: 1080 } }
     }).then(stream => {
       video.srcObject = stream;
     }).catch(err => alert("カメラエラー: " + err));
@@ -75,47 +56,40 @@
       canvas.height = h;
       const ctx = canvas.getContext('2d');
 
-      // ① 背景を白で塗りつぶす
-      ctx.fillStyle = "#ffffff";
-      ctx.fillRect(0, 0, w, h);
+      // 1. カメラ描画（背景）
+      ctx.drawImage(video, 0, 0, w, h);
 
-      // ② カメラ映像をアスペクト比維持で描画 (cover風)
-      const videoRatio = video.videoWidth / video.videoHeight;
-      const canvasRatio = w / h;
-      let drawVideoWidth, drawVideoHeight, drawVideoX, drawVideoY;
-
-      if (videoRatio > canvasRatio) {
-        // 横長 → 高さ基準で拡大
-        drawVideoHeight = h;
-        drawVideoWidth = h * videoRatio;
-        drawVideoX = (w - drawVideoWidth) / 2;
-        drawVideoY = 0;
-      } else {
-        // 縦長 → 幅基準で拡大
-        drawVideoWidth = w;
-        drawVideoHeight = w / videoRatio;
-        drawVideoX = 0;
-        drawVideoY = (h - drawVideoHeight) / 2;
-      }
-      ctx.drawImage(video, drawVideoX, drawVideoY, drawVideoWidth, drawVideoHeight);
-
-      // ③ キャラクター画像を中央配置で描画
+      // 2. キャラ画像の描画範囲を計算（中央配置）
       const img = overlay;
       const imgRatio = img.naturalWidth / img.naturalHeight;
       let drawWidth = w;
       let drawHeight = drawWidth / imgRatio;
-
       if (drawHeight > h) {
         drawHeight = h;
         drawWidth = drawHeight * imgRatio;
       }
-
       const drawX = (w - drawWidth) / 2;
       const drawY = (h - drawHeight) / 2;
 
+      // 3. 余白を白で塗りつぶす
+      ctx.fillStyle = "#ffffff";
+      if (drawY > 0) {
+        // 上余白
+        ctx.fillRect(0, 0, w, drawY);
+        // 下余白
+        ctx.fillRect(0, h - drawY, w, drawY);
+      }
+      if (drawX > 0) {
+        // 左余白
+        ctx.fillRect(0, 0, drawX, h);
+        // 右余白
+        ctx.fillRect(w - drawX, 0, drawX, h);
+      }
+
+      // 4. キャラ画像を透過で重ねる
       ctx.drawImage(img, drawX, drawY, drawWidth, drawHeight);
 
-      // 保存（タイムスタンプ付き）
+      // 5. 保存
       const now = new Date();
       const timestamp = now.toISOString().replace(/[-:T]/g, "").slice(0,14);
       const link = document.createElement('a');
