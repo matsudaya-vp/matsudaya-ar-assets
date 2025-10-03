@@ -29,7 +29,7 @@
         #date-overlay {
             position: fixed;
             bottom: 10px; right: 15px;
-            font-size: 1.5em;
+            font-size: 4vw;   /* 画面幅に応じて自動調整 */
             color: white;
             text-shadow: 2px 2px 4px black;
             z-index: 3;
@@ -72,7 +72,7 @@
                 .catch(err => { alert('カメラへのアクセスが拒否されました: ' + err); });
         }
 
-        // 日付オーバーレイを更新（1秒ごと）
+        // 日付オーバーレイ更新（1秒ごと）
         function updateDate() {
             const now = new Date();
             const dateText = now.getFullYear() + "/" 
@@ -104,11 +104,12 @@
 
             // 日付を合成（右下）
             const dateText = dateOverlay.textContent;
-            context.font = `${Math.floor(w * 0.05)}px Arial`;
+            const fontSize = Math.floor(w * 0.04); // 画面幅の4%に自動調整
+            context.font = `${fontSize}px Arial`;
             context.fillStyle = "white";
             context.strokeStyle = "black";
-            context.lineWidth = 4;
-            const margin = 20;
+            context.lineWidth = 3;
+            const margin = 15;
             const textX = w - margin - context.measureText(dateText).width;
             const textY = h - margin;
             context.strokeText(dateText, textX, textY);
