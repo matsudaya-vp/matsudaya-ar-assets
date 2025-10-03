@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>高杉晋作 - 3分割透過合成 (再修正)</title>
+    <title>高杉晋作 -10)</title>
     <style>
         body { margin: 0; overflow: hidden; background: #000; }
         
@@ -17,35 +17,34 @@
 
         /* 2. キャラクターオーバーレイのコンテナ */
         #character-container {
-            position: fixed;
-            top: 0; left: 0;
-            width: 100%;
-            height: 100%;
-            /* Flexboxで画像群を垂直方向中央揃え */
-            display: flex;
-            flex-direction: column;
-            justify-content: center; /* 垂直方向中央揃え */
-            align-items: center; /* 水平方向中央揃え */
+            position: absolute;
+            top: 0; /* JSで動的に設定されますが、初期値として上端に固定 */
+            left: 50%; 
+            transform: translateX(-50%);
+            
+            /* 【重要】JSで幅を正確に設定するため、CSSは初期設定のみ */
+            width: 100%; /* 初期値 */
+            max-width: 100vw;
+            max-height: 100vh;
+            overflow: hidden; /* 見切れを防ぐ */
+            
             z-index: 2;
             pointer-events: none;
             
-            /* 【💡修正ポイント】画像の合計サイズが画面を超えないようにします */
-            max-height: 100vh; /* ビューポートの高さを超えない */
-            overflow: hidden; /* 万が一はみ出した部分を非表示にする */
+            /* 3つの画像を垂直に並べるための設定 */
+            display: block; /* Flexboxを使わず、標準的なブロック要素として配置 */
         }
         
         /* 3. 3つのキャラクター画像 */
         .character-part {
-            /* 画面に収まるように幅を最大化し、高さを自動調整 */
-            max-width: 100vw;
-            height: auto;
-            display: block;
+            display: block; /* 【重要】画像間の隙間（幽霊スペース）を排除 */
+            width: 100%; /* 親コンテナ (#character-container) の幅に合わせる */
+            height: auto; /* 幅に合わせて高さを自動調整 */
             
-            /* 【💡修正ポイント】Flexbox内で画像が引き伸ばされるのを防ぎ、
-               連結時のわずかな隙間をなくすためにネガティブマージンを適用します */
-            margin: -1px 0; /* わずかな負のマージンで、連結の隙間を吸収 */
-            flex-shrink: 1; /* 親要素が小さくなったら縮小することを許可 */
-            min-height: 0;  /* 最小の高さを0に設定し、内容物よりも大きくならないようにする */
+            /* 描画崩れを防ぐための追加設定 */
+            vertical-align: top;
+            line-height: 0;
+            font-size: 0;
         }
         
         /* UIボタン */
@@ -74,24 +73,95 @@
     <div id="ui-container"><button id="capture-button">📸 撮影</button></div>
 
     <script>
-        // JavaScript部分は前回の回答と変更ありません。
-        // Canvasへの描画処理はすでに画面比率を考慮して計算されているため、
-        // ライブ表示の修正には影響しません。
         const video = document.getElementById('video-feed');
         const captureButton = document.getElementById('capture-button');
+        const container = document.getElementById('character-container');
         
         const imgTop = document.getElementById('img-top-loader');
         const imgCenter = document.getElementById('img-center-loader');
         const imgBottom = document.getElementById('img-bottom-loader');
 
-        // 1. カメラフィードの開始（既存と同じ）
+        // ----------------------------------------------------------------
+        // 1. ライブ表示のサイズ調整ロジック (画像ロード完了保証付き)
+        // ----------------------------------------------------------------
+
+        let loadedCount = 0;
+        const totalImages = 3;
+        const images = [imgTop, imgCenter, imgBottom];
+
+        // ライブ表示のサイズ調整関数
+        function adjustOverlaySize() {
+            // 画像が未ロードの場合は実行しない
+            if (!imgTop.naturalWidth || !imgCenter.naturalWidth || !imgBottom.naturalWidth) {
+                 return;
+            }
+
+            // 自然なサイズから結合後の全体アスペクト比を計算
+            const naturalWidth = imgCenter.naturalWidth;
+            const totalNaturalHeight = imgTop.naturalHeight + imgCenter.naturalHeight + imgBottom.naturalHeight;
+            const imageRatio = naturalWidth / totalNaturalHeight; // 幅/高さ
+
+            const screenWidth = window.innerWidth;
+            const screenHeight = window.innerHeight;
+
+            // 画面幅基準でスケールした場合の、結合後の合計高さ
+            const heightWhenScaledToWidth = screenWidth / imageRatio;
+            
+            let finalWidth = screenWidth;
+            let finalHeight = heightWhenScaledToWidth;
+
+            // 画面の高さよりも合計高さが大きい場合（縦長すぎる場合）
+            if (finalHeight > screenHeight) {
+                // 高さ基準でスケールダウン
+                const scaleFactor = screenHeight / finalHeight;
+                finalWidth = screenWidth * scaleFactor;
+                finalHeight = screenHeight;
+                
+                // 【画面上端密着】
+                container.style.top = `0`;
+                container.style.transform = `translateX(-50%)`;
+            } else {
+                // 画像が画面内に収まる場合（横長、または通常の縦横比）は、中央に配置
+                container.style.top = `50%`;
+                container.style.transform = `translate(-50%, -50%)`;
+            }
+            
+            // コンテナの幅を計算結果で上書きし、内部の画像 (width: 100%) が追従するようにする
+            container.style.width = `${finalWidth}px`;
+        }
+        
+        // 画像ロード完了後に調整を実行
+        function imageLoaded() {
+            loadedCount++;
+            if (loadedCount === totalImages) {
+                // すべての画像がロード完了したら、サイズ調整とリサイズイベントの登録を行う
+                adjustOverlaySize();
+                window.addEventListener('resize', adjustOverlaySize);
+            }
+        }
+
+        images.forEach(img => {
+            if (img.complete) {
+                imageLoaded();
+            } else {
+                img.addEventListener('load', imageLoaded);
+            }
+        });
+
+        // ----------------------------------------------------------------
+        // 2. カメラフィードの開始（既存と同じ）
+        // ----------------------------------------------------------------
+
         navigator.mediaDevices.getUserMedia({
             video: { facingMode: "environment", width: { ideal: 1920 }, height: { ideal: 1080 } }
         }).then(stream => {
             video.srcObject = stream;
         }).catch(err => alert("カメラエラー: " + err));
 
-        // 2. 撮影ロジック 
+        // ----------------------------------------------------------------
+        // 3. 撮影ロジック (既存のCanvas描画ロジック)
+        // ----------------------------------------------------------------
+        
         captureButton.addEventListener('click', () => {
             const w = video.videoWidth; 
             const h = video.videoHeight; 
@@ -101,10 +171,8 @@
             canvas.height = h;
             const ctx = canvas.getContext('2d');
 
-            // 1. カメラ描画（背景）
             ctx.drawImage(video, 0, 0, w, h);
 
-            // --- 描画範囲の計算 ---
             if (!imgTop.naturalWidth || !imgCenter.naturalWidth || !imgBottom.naturalWidth) {
                  alert("キャラクター画像がまだ読み込まれていません。");
                  return;
@@ -133,7 +201,6 @@
             const drawX = (w - drawWidth) / 2;
             let drawY = (h - totalDrawHeight) / 2;
 
-            // --- 3. 余白を白で塗りつぶす ---
             ctx.fillStyle = "#ffffff";
             
             if (drawY > 0) {
@@ -146,8 +213,6 @@
                 ctx.fillRect(w - drawX, drawY, drawX, totalDrawHeight);
             }
 
-            // --- 4. キャラ画像を透過で重ねる（3つのパーツを描画） ---
-            
             ctx.drawImage(imgTop, drawX, drawY, drawWidth, drawHeightTop);
             drawY += drawHeightTop;
 
@@ -156,7 +221,6 @@
 
             ctx.drawImage(imgBottom, drawX, drawY, drawWidth, drawHeightBottom);
 
-            // 5. 保存
             const now = new Date();
             const timestamp = now.toISOString().replace(/[-:T]/g, "").slice(0,14);
             const link = document.createElement('a');
