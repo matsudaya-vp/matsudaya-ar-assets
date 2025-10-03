@@ -3,21 +3,36 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>高杉晋作 - 1</title>
+  <title>高杉晋作 - 2</title>
   <style>
     body { margin: 0; overflow: hidden; background: #000; }
+    
     #video-feed {
       position: fixed; top: 0; left: 0;
       width: 100%; height: 100%;
       object-fit: cover; z-index: 1;
     }
+    
+    /* ★★★ 修正箇所: 画像を背景として扱い、余白を白で塗りつぶす ★★★ */
     #character-overlay {
       position: fixed;
-      top: 50%; left: 50%;
-      transform: translate(-50%, -50%);
-      max-width: 100vw; max-height: 100vh;
-      z-index: 2; pointer-events: none;
+      top: 0; left: 0;
+      width: 100vw; 
+      height: 100vh; /* 画面全体を覆う */
+      z-index: 2; 
+      pointer-events: none;
+      
+      /* 画像が見切れた際に見える背景色（塗りつぶしの色） */
+      background-color: #ffffff; 
+      
+      /* 画像ファイルと表示設定 */
+      background-image: url('pf-takasugi.png');
+      background-size: contain; /* 縦横比を保って全体を収める */
+      background-repeat: no-repeat;
+      background-position: center center; /* 中央配置 */
     }
+    /* ★★★ 修正箇所ここまで ★★★ */
+    
     #ui-container {
       position: fixed; bottom: 0; left: 0;
       width: 100%; display: flex; justify-content: center;
@@ -33,12 +48,15 @@
 </head>
 <body>
   <video id="video-feed" autoplay playsinline></video>
-  <img id="character-overlay" src="pf-takasugi.png" alt="高杉晋作">
+  
+  <div id="character-overlay"></div>
+  
   <div id="ui-container"><button id="capture-button">📸 撮影</button></div>
 
   <script>
     const video = document.getElementById('video-feed');
-    const overlay = document.getElementById('character-overlay');
+    // const overlay = document.getElementById('character-overlay'); // <img>要素ではないため削除
+
     const captureButton = document.getElementById('capture-button');
 
     navigator.mediaDevices.getUserMedia({
@@ -59,43 +77,65 @@
       // 1. カメラ描画（背景）
       ctx.drawImage(video, 0, 0, w, h);
 
-      // 2. キャラ画像の描画範囲を計算（中央配置）
-      const img = overlay;
-      const imgRatio = img.naturalWidth / img.naturalHeight;
-      let drawWidth = w;
-      let drawHeight = drawWidth / imgRatio;
-      if (drawHeight > h) {
-        drawHeight = h;
-        drawWidth = drawHeight * imgRatio;
-      }
-      const drawX = (w - drawWidth) / 2;
-      const drawY = (h - drawHeight) / 2;
+      // 2. キャラ画像（pf-takasugi.png）をロードして描画する
+      // DOM上の<img>から取得できなくなったため、新しくImageオブジェクトを作成
+      const img = new Image();
+      img.crossOrigin = 'Anonymous'; // クロスオリジンポリシー対策
+      img.src = 'pf-takasugi.png';
 
-      // 3. 余白を白で塗りつぶす
-      ctx.fillStyle = "#ffffff";
-      if (drawY > 0) {
-        // 上余白
-        ctx.fillRect(0, 0, w, drawY);
-        // 下余白
-        ctx.fillRect(0, h - drawY, w, drawY);
-      }
-      if (drawX > 0) {
-        // 左余白
-        ctx.fillRect(0, 0, drawX, h);
-        // 右余白
-        ctx.fillRect(w - drawX, 0, drawX, h);
-      }
+      // 画像のロード完了を待って描画・保存を実行
+      img.onload = () => {
+        const imgRatio = img.naturalWidth / img.naturalHeight;
+        const screenRatio = w / h;
 
-      // 4. キャラ画像を透過で重ねる
-      ctx.drawImage(img, drawX, drawY, drawWidth, drawHeight);
+        // canvas/画面に収まるように画像を計算 (contain相当)
+        let drawWidth, drawHeight, drawX, drawY;
 
-      // 5. 保存
-      const now = new Date();
-      const timestamp = now.toISOString().replace(/[-:T]/g, "").slice(0,14);
-      const link = document.createElement('a');
-      link.download = `matsudaya_photo_${timestamp}.png`;
-      link.href = canvas.toDataURL("image/png");
-      link.click();
+        if (imgRatio > screenRatio) {
+          // 画像が横長の場合、幅に合わせて高さを調整 (上下に余白)
+          drawWidth = w;
+          drawHeight = w / imgRatio;
+          drawX = 0;
+          drawY = (h - drawHeight) / 2;
+        } else {
+          // 画像が縦長の場合、高さに合わせて幅を調整 (左右に余白)
+          drawHeight = h;
+          drawWidth = h * imgRatio;
+          drawX = (w - drawWidth) / 2;
+          drawY = 0;
+        }
+
+        // 3. 余白を白で塗りつぶす (撮影後の画像にも白い余白を作る)
+        ctx.fillStyle = "#ffffff";
+        
+        // 上下余白
+        if (drawY > 0) {
+          ctx.fillRect(0, 0, w, drawY);
+          ctx.fillRect(0, h - drawY, w, drawY);
+        } 
+        // 左右余白
+        else if (drawX > 0) {
+          ctx.fillRect(0, 0, drawX, h);
+          ctx.fillRect(w - drawX, 0, drawX, h);
+        }
+        
+        // 4. キャラ画像を透過で重ねる
+        ctx.drawImage(img, drawX, drawY, drawWidth, drawHeight);
+
+        // 5. 保存
+        const now = new Date();
+        const timestamp = now.toISOString().replace(/[-:T]/g, "").slice(0,14);
+        const link = document.createElement('a');
+        link.download = `matsudaya_photo_${timestamp}.png`;
+        link.href = canvas.toDataURL("image/png");
+        link.click();
+      };
+      
+      // 画像のロードに失敗した場合の処理（任意）
+      img.onerror = () => {
+        console.error("画像ファイル 'pf-takasugi.png' のロードに失敗しました。");
+        alert("キャラクター画像の表示に問題が発生しました。");
+      };
     });
   </script>
 </body>
