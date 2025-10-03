@@ -3,27 +3,35 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>高杉晋作 - 等倍撮影</title>
+  <title>高杉晋作 - フル画面AR撮影</title>
   <style>
     body { margin: 0; overflow: hidden; background-color: #000; }
+
+    /* カメラ映像を画面いっぱいに表示 */
     #video-feed {
-      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-      object-fit: cover;
+      position: fixed; top: 0; left: 0;
+      width: 100%; height: 100%;
+      object-fit: cover; /* 画面いっぱいに表示 */
       z-index: 1;
     }
+
+    /* キャラクター画像を画面いっぱいに表示 */
     #character-overlay {
       position: fixed; top: 0; left: 0;
       width: 100vw; height: 100vh;
-      object-fit: contain;
+      object-fit: cover; /* 上下の隙間なし */
       z-index: 2;
     }
+
+    /* UI（撮影ボタン） */
     #ui-container {
       position: fixed; bottom: 0; left: 0; width: 100%;
       display: flex; justify-content: center; padding: 20px; z-index: 3;
     }
     #capture-button {
-      padding: 15px 30px; font-size: 1.2em; background-color: #fff;
-      color: #333; border: 2px solid #333; border-radius: 50px;
+      padding: 15px 30px; font-size: 1.2em;
+      background-color: #fff; color: #333;
+      border: 2px solid #333; border-radius: 50px;
       cursor: pointer; box-shadow: 0 4px 8px rgba(0,0,0,0.2);
     }
   </style>
@@ -31,44 +39,44 @@
 <body>
   <video id="video-feed" autoplay playsinline></video>
   <img id="character-overlay" src="pf-takasugi.png" alt="高杉晋作">
-  <div id="ui-container"><button id="capture-button">📸 撮影</button></div>
+  <div id="ui-container">
+    <button id="capture-button">?? 撮影</button>
+  </div>
 
   <script>
     const video = document.getElementById('video-feed');
-    const captureButton = document.getElementById('capture-button');
     const overlay = document.getElementById('character-overlay');
+    const captureButton = document.getElementById('capture-button');
 
-    // 背面カメラ（高解像度をリクエスト）
+    // 背面カメラで高解像度をリクエスト
     navigator.mediaDevices.getUserMedia({
       video: {
         facingMode: "environment",
         width: { ideal: 1920 },
         height: { ideal: 1080 }
       }
-    }).then(stream => {
-      video.srcObject = stream;
-    }).catch(err => alert("カメラエラー: " + err));
+    }).then(stream => { video.srcObject = stream; })
+      .catch(err => alert("カメラエラー: " + err));
 
     // 撮影処理
     captureButton.addEventListener('click', () => {
       const w = video.videoWidth;
       const h = video.videoHeight;
 
-      // 等倍でキャンバスを作る（カメラの実サイズそのまま）
       const canvas = document.createElement('canvas');
       canvas.width = w;
       canvas.height = h;
       const ctx = canvas.getContext('2d');
 
-      // カメラ映像を描画（拡大・縮小なし）
+      // カメラ映像（等倍・拡大なし）
       ctx.drawImage(video, 0, 0, w, h);
 
-      // キャラクター画像を画面比率に合わせて配置
+      // キャラクター画像を画面いっぱいに描画（切れありもOK）
       ctx.drawImage(overlay, 0, 0, w, h);
 
-      // 保存
+      // ファイル名にタイムスタンプ
       const now = new Date();
-      const timestamp = now.toISOString().replace(/[-:T]/g, "").slice(0,14);
+      const timestamp = now.toISOString().replace(/[-:T]/g,"").slice(0,14);
       const link = document.createElement('a');
       link.download = `matsudaya_photo_${timestamp}.png`;
       link.href = canvas.toDataURL("image/png");
