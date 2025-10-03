@@ -1,145 +1,74 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>高杉晋作 - 幕末AR写真</title>
-    
+    <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.3/dist/mindar-image-aframe.prod.js"></script>
+
     <style>
-        body { margin: 0; overflow: hidden; background-color: #000; }
-        
-        /* カメラ映像 */
-        #video-feed {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            object-fit: cover;
-            transform: scaleX(-1);
-        }
-
-        /* キャラクター画像 */
-        #character-overlay {
-            position: fixed; 
-            top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-            width: 70vw;
-            max-width: 500px;
-            z-index: 10;
-        }
-
-        /* 撮影ボタン */
         #ui-container {
             position: fixed; bottom: 0; left: 0; width: 100%;
-            display: flex; justify-content: center; padding: 20px; z-index: 20;
+            display: flex; justify-content: center; padding: 20px; z-index: 1000;
         }
         #capture-button {
             padding: 15px 30px; font-size: 1.2em; background-color: #ffffff;
             color: #333333; border: 2px solid #333333; border-radius: 50px;
             cursor: pointer; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
         }
-
-        /* 日付オーバーレイ */
-        #date-overlay {
-            position: fixed;
-            bottom: 10px; right: 15px;
-            font-size: 1.2em;
-            color: white;
-            text-shadow: 2px 2px 4px black; /* 影で視認性UP */
-            z-index: 15;
-            font-family: Arial, sans-serif;
-        }
     </style>
 </head>
-<body>
-    <video id="video-feed" autoplay playsinline></video>
-    
-    <img id="character-overlay" src="pf-takasugi.png" alt="高杉晋作">
+<body style='margin : 0px; overflow: hidden;'>
 
-    <!-- 日付オーバーレイ -->
-    <div id="date-overlay"></div>
+    <a-scene 
+        mindar-image="imageTargetSrc: https://matsudaya-vp.github.io/matsudaya-ar-assets/takasugi_kamon.mind; autoStart: true; filterMinCF: 1; filterBeta: 1; mirrorVideo: false; debug: true;"
+        color-space="sRGB" 
+        renderer="colorManagement: true, physicallyCorrectLights: true"
+        vr-mode-ui="enabled: false" 
+        device-orientation-permission-ui="enabled: false">
+
+        <a-assets>
+            <img id="characterTexture" src="shinshaku_takasugi_1.png">
+        </a-assets>
+
+        <a-entity mindar-image-target="targetIndex: 0">
+            <a-entity rotation="0 0 0">
+                <a-plane 
+                    width="1.0" 
+                    height="1.67" 
+                    position="0 0.835 0" 
+                    rotation="0 0 0"
+                    material="src: #characterTexture; transparent: true; alphaTest: 0.5; side: double;">
+                </a-plane>
+            </a-entity>
+        </a-entity>
+
+        <!-- scale で座標反転補正 -->
+        <a-camera active="true" position="0 0 0" scale="-1 1 1"></a-camera>
+    </a-scene>
 
     <div id="ui-container">
         <button id="capture-button">📸 撮影</button>
     </div>
 
     <script>
-        const video = document.getElementById('video-feed');
-        const captureButton = document.getElementById('capture-button');
-        const characterOverlay = document.getElementById('character-overlay');
-        const dateOverlay = document.getElementById('date-overlay');
-
-        // カメラ開始
-        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-            navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
-                .then(stream => { video.srcObject = stream; })
-                .catch(err => { alert('カメラへのアクセスが拒否されました: ' + err); });
-        }
-
-        // 日付を更新（1秒ごと）
-        function updateDate() {
-            const now = new Date();
-            const dateText = now.getFullYear() + "/" 
-                + ('0' + (now.getMonth() + 1)).slice(-2) + "/" 
-                + ('0' + now.getDate()).slice(-2);
-            dateOverlay.textContent = dateText;
-        }
-        setInterval(updateDate, 1000);
-        updateDate();
-
-        // 撮影処理
-        captureButton.addEventListener('click', () => {
-            const w = video.videoWidth;
-            const h = video.videoHeight;
-
-            const canvas = document.createElement('canvas');
-            canvas.width = w;
-            canvas.height = h;
-            const context = canvas.getContext('2d');
-
-            // カメラ映像
-            context.save();
-            context.scale(-1, 1);
-            context.drawImage(video, -w, 0, w, h);
-            context.restore();
-
-            // キャラクター画像
-            const img = characterOverlay;
-            const imgRatio = img.naturalHeight / img.naturalWidth;
-            const cssVW = 0.7;
-            const finalW = w * cssVW;
-            const finalH = finalW * imgRatio;
-            const finalX = (w - finalW) / 2;
-            const finalY = (h - finalH) / 2;
-            context.drawImage(img, finalX, finalY, finalW, finalH);
-
-            // 日付を合成（画面右下）
-            const dateText = dateOverlay.textContent;
-            context.font = `${Math.floor(w * 0.05)}px Arial`;
-            context.fillStyle = "white";
-            context.strokeStyle = "black";
-            context.lineWidth = 4;
-            const margin = 20;
-            const textX = w - margin - context.measureText(dateText).width;
-            const textY = h - margin;
-            context.strokeText(dateText, textX, textY);
-            context.fillText(dateText, textX, textY);
-
-            // ファイル名用のタイムスタンプ
-            const now = new Date();
-            const timestamp = now.getFullYear().toString()
-                + ('0' + (now.getMonth() + 1)).slice(-2)
-                + ('0' + now.getDate()).slice(-2) + '_'
-                + ('0' + now.getHours()).slice(-2)
-                + ('0' + now.getMinutes()).slice(-2)
-                + ('0' + now.getSeconds()).slice(-2);
-            const filename = `matsudaya_ar_photo_${timestamp}.png`;
-
-            // ダウンロード
-            const dataURL = canvas.toDataURL('image/png');
-            const link = document.createElement('a');
-            link.download = filename;
-            link.href = dataURL;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
+        document.addEventListener('DOMContentLoaded', () => {
+            const captureButton = document.getElementById('capture-button');
+            const scene = document.querySelector('a-scene');
+            if (captureButton && scene) {
+                captureButton.addEventListener('click', () => {
+                    const canvas = scene.querySelector('canvas');
+                    if (canvas) {
+                        const dataURL = canvas.toDataURL('image/png');
+                        const link = document.createElement('a');
+                        link.download = 'matsudaya_ar_photo.png';
+                        link.href = dataURL;
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                    } else {
+                        alert('ARシーンが読み込まれていません。');
+                    }
+                });
+            }
         });
     </script>
 </body>
