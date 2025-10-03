@@ -50,17 +50,11 @@
         const captureButton = document.getElementById('capture-button');
         const characterOverlay = document.getElementById('character-overlay');
 
-        // 背面カメラで高解像度指定
+        // 背面カメラで等倍（解像度指定なし）
         if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-            navigator.mediaDevices.getUserMedia({ 
-                video: { 
-                    facingMode: "environment",
-                    width: { ideal: 1125 },  // iPhone縦向き想定
-                    height: { ideal: 2436 }
-                } 
-            })
-            .then(stream => { video.srcObject = stream; })
-            .catch(err => { alert('カメラへのアクセスが拒否されました: ' + err); });
+            navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
+                .then(stream => { video.srcObject = stream; })
+                .catch(err => { alert('カメラへのアクセスが拒否されました: ' + err); });
         }
 
         // 撮影処理
@@ -68,7 +62,6 @@
             const w = video.videoWidth;
             const h = video.videoHeight;
 
-            // 高解像度キャンバス
             const canvas = document.createElement('canvas');
             canvas.width = w;
             canvas.height = h;
