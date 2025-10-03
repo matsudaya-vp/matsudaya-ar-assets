@@ -29,7 +29,7 @@
         #date-overlay {
             position: fixed;
             bottom: 10px; right: 15px;
-            font-size: 4vw;   /* 画面幅に応じて自動調整 */
+            font-size: 3vh;   /* 高さに応じて調整 */
             color: white;
             text-shadow: 2px 2px 4px black;
             z-index: 3;
@@ -102,9 +102,9 @@
             // キャラクター画像（画面全体）
             context.drawImage(characterOverlay, 0, 0, w, h);
 
-            // 日付を合成（右下）
+            // 日付を合成（右下、高さ基準でサイズ調整）
             const dateText = dateOverlay.textContent;
-            const fontSize = Math.floor(w * 0.04); // 画面幅の4%に自動調整
+            const fontSize = Math.floor(h * 0.03); // 高さの3%に調整
             context.font = `${fontSize}px Arial`;
             context.fillStyle = "white";
             context.strokeStyle = "black";
