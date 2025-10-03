@@ -56,7 +56,6 @@
     const overlay = document.getElementById('character-overlay');
     const captureButton = document.getElementById('capture-button');
 
-    // 背面カメラ、高解像度リクエスト
     navigator.mediaDevices.getUserMedia({
       video: {
         facingMode: "environment",
@@ -76,10 +75,31 @@
       canvas.height = h;
       const ctx = canvas.getContext('2d');
 
-      // カメラ映像を背景に描画
-      ctx.drawImage(video, 0, 0, w, h);
+      // ① 背景を白で塗りつぶす
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, w, h);
 
-      // キャラクター画像を中央配置で描画（上下余白は白塗り）
+      // ② カメラ映像をアスペクト比維持で描画 (cover風)
+      const videoRatio = video.videoWidth / video.videoHeight;
+      const canvasRatio = w / h;
+      let drawVideoWidth, drawVideoHeight, drawVideoX, drawVideoY;
+
+      if (videoRatio > canvasRatio) {
+        // 横長 → 高さ基準で拡大
+        drawVideoHeight = h;
+        drawVideoWidth = h * videoRatio;
+        drawVideoX = (w - drawVideoWidth) / 2;
+        drawVideoY = 0;
+      } else {
+        // 縦長 → 幅基準で拡大
+        drawVideoWidth = w;
+        drawVideoHeight = w / videoRatio;
+        drawVideoX = 0;
+        drawVideoY = (h - drawVideoHeight) / 2;
+      }
+      ctx.drawImage(video, drawVideoX, drawVideoY, drawVideoWidth, drawVideoHeight);
+
+      // ③ キャラクター画像を中央配置で描画
       const img = overlay;
       const imgRatio = img.naturalWidth / img.naturalHeight;
       let drawWidth = w;
@@ -93,14 +113,6 @@
       const drawX = (w - drawWidth) / 2;
       const drawY = (h - drawHeight) / 2;
 
-      // まず上下の余白を白で塗る
-      ctx.fillStyle = "#ffffff";
-      if (drawY > 0) {
-        ctx.fillRect(0, 0, w, drawY); // 上余白
-        ctx.fillRect(0, h - drawY, w, drawY); // 下余白
-      }
-
-      // キャラクター画像（透過を活かして）を重ねる
       ctx.drawImage(img, drawX, drawY, drawWidth, drawHeight);
 
       // 保存（タイムスタンプ付き）
