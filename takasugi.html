@@ -11,17 +11,17 @@
         /* カメラ映像 */
         #video-feed {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            object-fit: cover;  /* 画面全体に表示 */
+            object-fit: cover;
             transform: scaleX(-1);
             z-index: 1;
         }
 
-        /* キャラクター画像（画面内に収まる） */
+        /* キャラクター画像（縦向き画面にフィット） */
         #character-overlay {
             position: fixed; top: 0; left: 0;
             width: 100vw;
             height: 100vh;
-            object-fit: contain; /* はみ出さず縦横比を維持 */
+            object-fit: contain; /* 縦横比を維持して画面に収める */
             z-index: 2;
         }
 
@@ -93,145 +93,6 @@
             const drawX = (w - drawWidth) / 2;
             const drawY = (h - drawHeight) / 2;
             context.drawImage(img, drawX, drawY, drawWidth, drawHeight);
-
-            // ファイル名用タイムスタンプ
-            const now = new Date();
-            const timestamp = now.getFullYear().toString()
-                + ('0' + (now.getMonth() + 1)).slice(-2)
-                + ('0' + now.getDate()).slice(-2) + '_'
-                + ('0' + now.getHours()).slice(-2)
-                + ('0' + now.getMinutes()).slice(-2)
-                + ('0' + now.getSeconds()).slice(-2);
-            const filename = `matsudaya_ar_photo_${timestamp}.png`;
-
-            // ダウンロード
-            const dataURL = canvas.toDataURL('image/png');
-            const link = document.createElement('a');
-            link.download = filename;
-            link.href = dataURL;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        });
-    </script>
-</body>
-</html>
-DOCTYPE html>
-<html>
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>高杉晋作 - 幕末AR写真</title>
-    
-    <style>
-        body { margin: 0; overflow: hidden; background-color: #000; }
-
-        /* カメラ映像 */
-        #video-feed {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            object-fit: cover;
-            transform: scaleX(-1);
-            z-index: 1;
-        }
-
-        /* キャラクター画像（画面いっぱい） */
-        #character-overlay {
-            position: fixed; top: 0; left: 0;
-            width: 100vw;
-            height: 100vh;
-            object-fit: cover;
-            z-index: 2;
-        }
-
-        /* 日付オーバーレイ */
-        #date-overlay {
-            position: fixed;
-            bottom: 10px; right: 15px;
-            font-size: 3vh;   /* 高さに応じて調整 */
-            color: white;
-            text-shadow: 2px 2px 4px black;
-            z-index: 3;
-            font-family: Arial, sans-serif;
-        }
-
-        /* UI（撮影ボタン） */
-        #ui-container {
-            position: fixed; bottom: 0; left: 0; width: 100%;
-            display: flex; justify-content: center; padding: 20px; z-index: 4;
-        }
-        #capture-button {
-            padding: 15px 30px; font-size: 1.2em; background-color: #ffffff;
-            color: #333333; border: 2px solid #333333; border-radius: 50px;
-            cursor: pointer; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-        }
-    </style>
-</head>
-<body>
-    <video id="video-feed" autoplay playsinline></video>
-    
-    <img id="character-overlay" src="shinshaku_takasugi_1.png" alt="高杉晋作">
-
-    <div id="date-overlay"></div>
-
-    <div id="ui-container">
-        <button id="capture-button">📸 撮影</button>
-    </div>
-
-    <script>
-        const video = document.getElementById('video-feed');
-        const captureButton = document.getElementById('capture-button');
-        const characterOverlay = document.getElementById('character-overlay');
-        const dateOverlay = document.getElementById('date-overlay');
-
-        // カメラ開始
-        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-            navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
-                .then(stream => { video.srcObject = stream; })
-                .catch(err => { alert('カメラへのアクセスが拒否されました: ' + err); });
-        }
-
-        // 日付オーバーレイ更新（1秒ごと）
-        function updateDate() {
-            const now = new Date();
-            const dateText = now.getFullYear() + "/" 
-                + ('0' + (now.getMonth() + 1)).slice(-2) + "/" 
-                + ('0' + now.getDate()).slice(-2);
-            dateOverlay.textContent = dateText;
-        }
-        setInterval(updateDate, 1000);
-        updateDate();
-
-        // 撮影処理
-        captureButton.addEventListener('click', () => {
-            const w = video.videoWidth;
-            const h = video.videoHeight;
-
-            const canvas = document.createElement('canvas');
-            canvas.width = w;
-            canvas.height = h;
-            const context = canvas.getContext('2d');
-
-            // カメラ映像
-            context.save();
-            context.scale(-1, 1);
-            context.drawImage(video, -w, 0, w, h);
-            context.restore();
-
-            // キャラクター画像（画面全体）
-            context.drawImage(characterOverlay, 0, 0, w, h);
-
-            // 日付を合成（右下、高さ基準でサイズ調整）
-            const dateText = dateOverlay.textContent;
-            const fontSize = Math.floor(h * 0.03); // 高さの3%に調整
-            context.font = `${fontSize}px Arial`;
-            context.fillStyle = "white";
-            context.strokeStyle = "black";
-            context.lineWidth = 3;
-            const margin = 15;
-            const textX = w - margin - context.measureText(dateText).width;
-            const textY = h - margin;
-            context.strokeText(dateText, textX, textY);
-            context.fillText(dateText, textX, textY);
 
             // ファイル名用タイムスタンプ
             const now = new Date();
