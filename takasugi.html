@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>高杉晋作 - フル画面AR撮影</title>
+  <title>高杉晋作 - 等倍撮影（上寄せ）</title>
   <style>
     body { margin: 0; overflow: hidden; background-color: #000; }
 
@@ -11,15 +11,16 @@
     #video-feed {
       position: fixed; top: 0; left: 0;
       width: 100%; height: 100%;
-      object-fit: cover; /* 画面いっぱい表示、切れありOK */
+      object-fit: cover;
       z-index: 1;
     }
 
-    /* キャラクター画像 */
+    /* キャラクター画像（上寄せ） */
     #character-overlay {
-      position: fixed; top: 0; left: 0;
-      width: 100vw; height: 100vh;
-      object-fit: cover; /* 画面いっぱい表示、切れありOK */
+      position: fixed; top: 0; left: 50%;
+      transform: translateX(-50%); /* 横中央揃え */
+      width: 100vw;
+      height: auto; /* 高さ自動、縦比率を維持 */
       z-index: 2;
     }
 
@@ -29,9 +30,8 @@
       display: flex; justify-content: center; padding: 20px; z-index: 3;
     }
     #capture-button {
-      padding: 15px 30px; font-size: 1.2em;
-      background-color: #fff; color: #333;
-      border: 2px solid #333; border-radius: 50px;
+      padding: 15px 30px; font-size: 1.2em; background-color: #fff;
+      color: #333; border: 2px solid #333; border-radius: 50px;
       cursor: pointer; box-shadow: 0 4px 8px rgba(0,0,0,0.2);
     }
   </style>
@@ -48,9 +48,13 @@
     const overlay = document.getElementById('character-overlay');
     const captureButton = document.getElementById('capture-button');
 
-    // 背面カメラで等倍高解像度
+    // 背面カメラ（高解像度をリクエスト）
     navigator.mediaDevices.getUserMedia({
-      video: { facingMode: "environment", width: { ideal: 1920 }, height: { ideal: 1080 } }
+      video: {
+        facingMode: "environment",
+        width: { ideal: 1920 },
+        height: { ideal: 1080 }
+      }
     })
     .then(stream => { video.srcObject = stream; })
     .catch(err => alert("カメラエラー: " + err));
@@ -65,15 +69,19 @@
       canvas.height = h;
       const ctx = canvas.getContext('2d');
 
-      // カメラ映像（等倍）
+      // カメラ映像
       ctx.drawImage(video, 0, 0, w, h);
 
-      // キャラクター画像（画面いっぱいに描画、切れありOK）
-      ctx.drawImage(overlay, 0, 0, w, h);
+      // キャラクター画像を上寄せで描画
+      const img = overlay;
+      const imgRatio = img.naturalWidth / img.naturalHeight;
+      const drawWidth = w;
+      const drawHeight = drawWidth / imgRatio;
+      ctx.drawImage(img, 0, 0, drawWidth, drawHeight);
 
-      // タイムスタンプ付きファイル名
+      // 保存
       const now = new Date();
-      const timestamp = now.toISOString().replace(/[-:T]/g,"").slice(0,14);
+      const timestamp = now.toISOString().replace(/[-:T]/g, "").slice(0,14);
       const link = document.createElement('a');
       link.download = `matsudaya_photo_${timestamp}.png`;
       link.href = canvas.toDataURL("image/png");
