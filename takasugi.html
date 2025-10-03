@@ -1,13 +1,34 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.3/dist/mindar-image-aframe.prod.js"></script>
-
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>高杉晋作 - 幕末AR写真</title>
+    
     <style>
+        body { margin: 0; overflow: hidden; background-color: #000; }
+
+        /* カメラ映像 */
+        #video-feed {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            object-fit: cover;
+            transform: scaleX(-1);
+            z-index: 1;
+        }
+
+        /* キャラクター画像（縦向き画面にフィット） */
+        #character-overlay {
+            position: fixed; top: 0; left: 0;
+            width: 100vw;
+            height: 100vh;
+            object-fit: contain; /* 縦横比を維持して画面に収める */
+            z-index: 2;
+        }
+
+        /* UI（撮影ボタン） */
         #ui-container {
             position: fixed; bottom: 0; left: 0; width: 100%;
-            display: flex; justify-content: center; padding: 20px; z-index: 1000;
+            display: flex; justify-content: center; padding: 20px; z-index: 3;
         }
         #capture-button {
             padding: 15px 30px; font-size: 1.2em; background-color: #ffffff;
@@ -16,59 +37,81 @@
         }
     </style>
 </head>
-<body style='margin : 0px; overflow: hidden;'>
-
-    <a-scene 
-        mindar-image="imageTargetSrc: https://matsudaya-vp.github.io/matsudaya-ar-assets/takasugi_kamon.mind; 
-                      autoStart: true; filterMinCF: 1; filterBeta: 1; 
-                      mirrorVideo: false; debug: true;"
-        color-space="sRGB" 
-        renderer="colorManagement: true, physicallyCorrectLights: true"
-        vr-mode-ui="enabled: false" 
-        device-orientation-permission-ui="enabled: false">
-        
-        <a-assets>
-            <img id="characterTexture" src="shinshaku_takasugi_1.png">
-        </a-assets>
-
-        <a-entity mindar-image-target="targetIndex: 0">
-            <a-entity rotation="0 0 0">
-                <a-plane 
-                    width="1.0" height="1.67"
-                    position="0 0.835 0" rotation="0 0 0"
-                    material="src: #characterTexture; transparent: true; alphaTest: 0.5; side: double;">
-                </a-plane>
-            </a-entity>
-        </a-entity>
-
-        <!-- カメラを有効化 -->
-        <a-camera active="true" position="0 0 0"></a-camera>
-    </a-scene>
+<body>
+    <video id="video-feed" autoplay playsinline></video>
+    
+    <img id="character-overlay" src="shinshaku_takasugi_1.png" alt="高杉晋作">
 
     <div id="ui-container">
         <button id="capture-button">📸 撮影</button>
     </div>
 
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const captureButton = document.getElementById('capture-button');
-            const scene = document.querySelector('a-scene');
-            if (captureButton && scene) {
-                captureButton.addEventListener('click', () => {
-                    const canvas = scene.querySelector('canvas');
-                    if (canvas) {
-                        const dataURL = canvas.toDataURL('image/png');
-                        const link = document.createElement('a');
-                        link.download = 'matsudaya_ar_photo.png';
-                        link.href = dataURL;
-                        document.body.appendChild(link);
-                        link.click();
-                        document.body.removeChild(link);
-                    } else {
-                        alert('ARシーンが読み込まれていません。');
-                    }
-                });
+        const video = document.getElementById('video-feed');
+        const captureButton = document.getElementById('capture-button');
+        const characterOverlay = document.getElementById('character-overlay');
+
+        // カメラ開始
+        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+            navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
+                .then(stream => { video.srcObject = stream; })
+                .catch(err => { alert('カメラへのアクセスが拒否されました: ' + err); });
+        }
+
+        // 撮影処理
+        captureButton.addEventListener('click', () => {
+            const w = video.videoWidth;
+            const h = video.videoHeight;
+
+            const canvas = document.createElement('canvas');
+            canvas.width = w;
+            canvas.height = h;
+            const context = canvas.getContext('2d');
+
+            // カメラ映像
+            context.save();
+            context.scale(-1, 1);
+            context.drawImage(video, -w, 0, w, h);
+            context.restore();
+
+            // キャラクター画像（縦横比を維持して画面内に収まる）
+            const img = characterOverlay;
+            const imgRatio = img.naturalWidth / img.naturalHeight;
+            const canvasRatio = w / h;
+            let drawWidth, drawHeight;
+
+            if (canvasRatio > imgRatio) {
+                // キャンバスが横長 → 高さを基準
+                drawHeight = h;
+                drawWidth = drawHeight * imgRatio;
+            } else {
+                // キャンバスが縦長 → 幅を基準
+                drawWidth = w;
+                drawHeight = drawWidth / imgRatio;
             }
+
+            const drawX = (w - drawWidth) / 2;
+            const drawY = (h - drawHeight) / 2;
+            context.drawImage(img, drawX, drawY, drawWidth, drawHeight);
+
+            // ファイル名用タイムスタンプ
+            const now = new Date();
+            const timestamp = now.getFullYear().toString()
+                + ('0' + (now.getMonth() + 1)).slice(-2)
+                + ('0' + now.getDate()).slice(-2) + '_'
+                + ('0' + now.getHours()).slice(-2)
+                + ('0' + now.getMinutes()).slice(-2)
+                + ('0' + now.getSeconds()).slice(-2);
+            const filename = `matsudaya_ar_photo_${timestamp}.png`;
+
+            // ダウンロード
+            const dataURL = canvas.toDataURL('image/png');
+            const link = document.createElement('a');
+            link.download = filename;
+            link.href = dataURL;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
         });
     </script>
 </body>
