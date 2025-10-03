@@ -1,118 +1,93 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>高杉晋作 - 幕末AR写真2224 (Full HD)</title>
-    
-    <style>
-        body { margin: 0; overflow: hidden; background-color: #000; }
-
-        /* カメラ映像 */
-        #video-feed {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            object-fit: cover;
-            z-index: 1;
-        }
-
-        /* キャラクター画像（縦向き画面にフィット） */
-        #character-overlay {
-            position: fixed; top: 0; left: 0;
-            width: 100vw;
-            height: 100vh;
-            object-fit: contain;
-            z-index: 2;
-        }
-
-        /* UI（撮影ボタン） */
-        #ui-container {
-            position: fixed; bottom: 0; left: 0; width: 100%;
-            display: flex; justify-content: center; padding: 20px; z-index: 3;
-        }
-        #capture-button {
-            padding: 15px 30px; font-size: 1.2em; background-color: #ffffff;
-            color: #333333; border: 2px solid #333333; border-radius: 50px;
-            cursor: pointer; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-        }
-    </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>中央切り出し iPhone X/11/12 縦長撮影2228</title>
+<style>
+  body { margin:0; overflow:hidden; background:#000; }
+  /* スマホ画面にベタ表示 */
+  #video-feed, #character-overlay {
+    position:fixed; top:0; left:0; width:100%; height:100%; object-fit:cover;
+    z-index:1;
+  }
+  #character-overlay { z-index:2; }
+  #ui-container {
+    position:fixed; bottom:0; width:100%; display:flex; justify-content:center; z-index:3;
+  }
+  #capture-button {
+    padding:15px 30px; font-size:1.2em; border-radius:50px; cursor:pointer; background:#fff; color:#333;
+    border:2px solid #333; box-shadow:0 4px 8px rgba(0,0,0,0.2);
+  }
+</style>
 </head>
 <body>
-    <video id="video-feed" autoplay playsinline></video>
-    
-    <img id="character-overlay" src="pf-takasugi2.png" alt="高杉晋作">
+<video id="video-feed" autoplay playsinline></video>
+<img id="character-overlay" src="pf-takasugi-tall.png" alt="高杉晋作">
+<div id="ui-container"><button id="capture-button">📸 撮影</button></div>
 
-    <div id="ui-container">
-        <button id="capture-button">📸 撮影</button>
-    </div>
+<script>
+const video = document.getElementById('video-feed');
+const overlay = document.getElementById('character-overlay');
+const captureButton = document.getElementById('capture-button');
 
-    <script>
-        const video = document.getElementById('video-feed');
-        const captureButton = document.getElementById('capture-button');
-        const characterOverlay = document.getElementById('character-overlay');
+// 背面カメラ（高解像度を希望）
+navigator.mediaDevices.getUserMedia({
+  video: { facingMode: "environment", width: { ideal: 2436 }, height: { ideal: 1125 } }
+}).then(stream => { video.srcObject = stream; })
+  .catch(err => alert("カメラアクセスエラー: " + err));
 
-        // 背面カメラで縦向き Full HD
-        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-            navigator.mediaDevices.getUserMedia({ 
-                video: { 
-                    facingMode: "environment",
-                    width: { ideal: 1080 },
-                    height: { ideal: 1920 }
-                } 
-            })
-            .then(stream => { video.srcObject = stream; })
-            .catch(err => { alert('カメラへのアクセスが拒否されました: ' + err); });
-        }
+// 撮影処理（画面中央を基準にHD切り出し）
+captureButton.addEventListener('click', () => {
+  const HD_W = 1080;   // 切り出し幅
+  const HD_H = 1920;   // 切り出し高さ
+  const canvas = document.createElement('canvas');
+  canvas.width = HD_W;
+  canvas.height = HD_H;
+  const ctx = canvas.getContext('2d');
 
-        // 撮影処理
-        captureButton.addEventListener('click', () => {
-            const w = video.videoWidth;
-            const h = video.videoHeight;
+  // video の中央を切り出す
+  const videoRatio = video.videoWidth / video.videoHeight;
+  const canvasRatio = HD_W / HD_H;
 
-            const canvas = document.createElement('canvas');
-            canvas.width = w;
-            canvas.height = h;
-            const ctx = canvas.getContext('2d');
+  let srcW, srcH, srcX, srcY;
+  if(videoRatio > canvasRatio){
+    srcH = video.videoHeight;
+    srcW = srcH * canvasRatio;
+    srcX = (video.videoWidth - srcW)/2;
+    srcY = 0;
+  } else {
+    srcW = video.videoWidth;
+    srcH = srcW / canvasRatio;
+    srcX = 0;
+    srcY = (video.videoHeight - srcH)/2;
+  }
+  ctx.drawImage(video, srcX, srcY, srcW, srcH, 0, 0, HD_W, HD_H);
 
-            // カメラ映像
-            ctx.drawImage(video, 0, 0, w, h);
+  // キャラクター画像も中央基準で切り出す
+  const imgRatio = overlay.naturalWidth / overlay.naturalHeight;
+  let imgW, imgH, imgX, imgY;
+  if(imgRatio > canvasRatio){
+    imgH = overlay.naturalHeight;
+    imgW = imgH * canvasRatio;
+    imgX = (overlay.naturalWidth - imgW)/2;
+    imgY = 0;
+  } else {
+    imgW = overlay.naturalWidth;
+    imgH = imgW / canvasRatio;
+    imgX = 0;
+    imgY = (overlay.naturalHeight - imgH)/2;
+  }
+  ctx.drawImage(overlay, imgX, imgY, imgW, imgH, 0, 0, HD_W, HD_H);
 
-            // キャラクター画像（縦横比維持）
-            const img = characterOverlay;
-            const imgRatio = img.naturalWidth / img.naturalHeight;
-            const canvasRatio = w / h;
-            let drawWidth, drawHeight;
-
-            if (canvasRatio > imgRatio) {
-                drawHeight = h;
-                drawWidth = drawHeight * imgRatio;
-            } else {
-                drawWidth = w;
-                drawHeight = drawWidth / imgRatio;
-            }
-
-            const drawX = (w - drawWidth) / 2;
-            const drawY = (h - drawHeight) / 2;
-            ctx.drawImage(img, drawX, drawY, drawWidth, drawHeight);
-
-            // タイムスタンプ付きファイル名
-            const now = new Date();
-            const timestamp = now.getFullYear().toString()
-                + ('0' + (now.getMonth() + 1)).slice(-2)
-                + ('0' + now.getDate()).slice(-2) + '_'
-                + ('0' + now.getHours()).slice(-2)
-                + ('0' + now.getMinutes()).slice(-2)
-                + ('0' + now.getSeconds()).slice(-2);
-            const filename = `matsudaya_ar_photo_FHD_${timestamp}.png`;
-
-            // ダウンロード
-            const dataURL = canvas.toDataURL('image/png');
-            const link = document.createElement('a');
-            link.download = filename;
-            link.href = dataURL;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        });
-    </script>
+  // タイムスタンプ付きファイル名
+  const now = new Date();
+  const timestamp = now.toISOString().replace(/[-:T]/g,"").slice(0,14);
+  const link = document.createElement('a');
+  link.download = `matsudaya_photo_${timestamp}.png`;
+  link.href = canvas.toDataURL("image/png");
+  link.click();
+});
+</script>
 </body>
 </html>
