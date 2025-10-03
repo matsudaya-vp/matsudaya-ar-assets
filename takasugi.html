@@ -5,18 +5,36 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>高杉晋作 - 幕末AR写真</title>
     
-<style>
+    <style>
         body { margin: 0; overflow: hidden; background-color: #000; }
         
-        /* 1. カメラ映像を画面いっぱいに表示 (修正箇所) */
+        /* 1. カメラ映像を画面いっぱいに表示 */
         #video-feed {
-            position: fixed; top: 0; left: 0; 
-            /* 🌟🌟🌟 修正: width/heightをmin-width/min-heightに変更 🌟🌟🌟 */
-            min-width: 100%; min-height: 100%; 
-            object-fit: cover; /* 画面いっぱいに広げる */
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            object-fit: cover;
             transform: scaleX(-1); /* 自撮り感覚で鏡像反転 */
         }
-        /* ... 後略 ... */
+
+        /* 2. キャラクター画像を中央に固定配置 */
+        #character-overlay {
+            position: fixed; 
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 70vw;
+            max-width: 500px;
+            z-index: 10;
+        }
+
+        /* 3. UI（撮影ボタン）のスタイル */
+        #ui-container {
+            position: fixed; bottom: 0; left: 0; width: 100%;
+            display: flex; justify-content: center; padding: 20px; z-index: 20;
+        }
+        #capture-button {
+            padding: 15px 30px; font-size: 1.2em; background-color: #ffffff;
+            color: #333333; border: 2px solid #333333; border-radius: 50px;
+            cursor: pointer; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
     </style>
 </head>
 <body>
@@ -29,41 +47,67 @@
     </div>
 
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const video = document.getElementById('video-feed');
-            const captureButton = document.getElementById('capture-button');
-            const characterOverlay = document.getElementById('character-overlay');
-            
-            // ★追加したチェック: video要素がない場合はここで処理を終了し、エラーを回避します
-            if (!video) {
-                console.error("Video element with ID 'video-feed' not found.");
-                return;
-            }
+        const video = document.getElementById('video-feed');
+        const captureButton = document.getElementById('capture-button');
+        const characterOverlay = document.getElementById('character-overlay');
 
-            // 1. カメラ映像の取得と開始
-            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-                navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } }) // 背面カメラ優先
-                    .then(stream => {
-                        video.srcObject = stream;
-                    })
-                    .catch(err => {
-                        alert('カメラへのアクセスが拒否されました: ' + err);
-                    });
-            }
-            
-            // 2. 撮影機能の実装（カメラ映像とキャラクター画像を合成）
-            captureButton.addEventListener('click', () => {
-                // カメラ映像の幅と高さを取得
-                const w = video.videoWidth;
-                const h = video.videoHeight;
+        // 1. カメラ映像の取得と開始
+        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+            navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } }) // 背面カメラ優先
+                .then(stream => {
+                    video.srcObject = stream;
+                })
+                .catch(err => {
+                    alert('カメラへのアクセスが拒否されました: ' + err);
+                });
+        }
+        
+        // 2. 撮影機能の実装
+        captureButton.addEventListener('click', () => {
+            const w = video.videoWidth;
+            const h = video.videoHeight;
 
-                // 合成用のキャンバスを作成
-                const canvas = document.createElement('canvas');
-                canvas.width = w;
-                canvas.height = h;
-                const context = canvas.getContext('2d');
+            const canvas = document.createElement('canvas');
+            canvas.width = w;
+            canvas.height = h;
+            const context = canvas.getContext('2d');
 
-                // 1. カメラ映像をキャンバスに描画 (CSSの反転を考慮)
-                context.save();
-                context.scale(-1, 1);
-                context.drawImage
+            // カメラ映像を反転して描画
+            context.save();
+            context.scale(-1, 1);
+            context.drawImage(video, -w, 0, w, h);
+            context.restore();
+
+            // キャラクター画像を重ねる
+            const img = characterOverlay;
+            const imgRatio = img.naturalHeight / img.naturalWidth;
+            const cssVW = 0.7;
+            const finalW = w * cssVW;
+            const finalH = finalW * imgRatio;
+            const finalX = (w - finalW) / 2;
+            const finalY = (h - finalH) / 2;
+            context.drawImage(img, finalX, finalY, finalW, finalH);
+
+            // 日時をファイル名に追加
+            const now = new Date();
+            const timestamp = now.getFullYear().toString()
+                + ('0' + (now.getMonth() + 1)).slice(-2)
+                + ('0' + now.getDate()).slice(-2) + '_'
+                + ('0' + now.getHours()).slice(-2)
+                + ('0' + now.getMinutes()).slice(-2)
+                + ('0' + now.getSeconds()).slice(-2);
+
+            const filename = `matsudaya_ar_photo_${timestamp}.png`;
+
+            // ダウンロード
+            const dataURL = canvas.toDataURL('image/png');
+            const link = document.createElement('a');
+            link.download = filename;
+            link.href = dataURL;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        });
+    </script>
+</body>
+</html>
