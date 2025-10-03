@@ -20,7 +20,7 @@
             position: fixed; top: 0; left: 0;
             width: 100vw;
             height: 100vh;
-            object-fit: contain; /* 縦横比を維持して画面に収める */
+            object-fit: contain;
             z-index: 2;
         }
 
@@ -39,7 +39,7 @@
 <body>
     <video id="video-feed" autoplay playsinline></video>
     
-    <img id="character-overlay" src="pf-takasugi.png" alt="高杉晋作">
+    <img id="character-overlay" src="shinshaku_takasugi_1.png" alt="高杉晋作">
 
     <div id="ui-container">
         <button id="capture-button">📸 撮影</button>
@@ -50,11 +50,17 @@
         const captureButton = document.getElementById('capture-button');
         const characterOverlay = document.getElementById('character-overlay');
 
-        // カメラ開始（背面カメラ）
+        // 背面カメラで高解像度指定
         if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-            navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
-                .then(stream => { video.srcObject = stream; })
-                .catch(err => { alert('カメラへのアクセスが拒否されました: ' + err); });
+            navigator.mediaDevices.getUserMedia({ 
+                video: { 
+                    facingMode: "environment",
+                    width: { ideal: 1125 },  // iPhone縦向き想定
+                    height: { ideal: 2436 }
+                } 
+            })
+            .then(stream => { video.srcObject = stream; })
+            .catch(err => { alert('カメラへのアクセスが拒否されました: ' + err); });
         }
 
         // 撮影処理
@@ -62,15 +68,16 @@
             const w = video.videoWidth;
             const h = video.videoHeight;
 
+            // 高解像度キャンバス
             const canvas = document.createElement('canvas');
             canvas.width = w;
             canvas.height = h;
-            const context = canvas.getContext('2d');
+            const ctx = canvas.getContext('2d');
 
             // カメラ映像（反転なし）
-            context.drawImage(video, 0, 0, w, h);
+            ctx.drawImage(video, 0, 0, w, h);
 
-            // キャラクター画像（縦横比を維持して画面内に収める）
+            // キャラクター画像（縦横比を維持して画面いっぱい）
             const img = characterOverlay;
             const imgRatio = img.naturalWidth / img.naturalHeight;
             const canvasRatio = w / h;
@@ -86,9 +93,9 @@
 
             const drawX = (w - drawWidth) / 2;
             const drawY = (h - drawHeight) / 2;
-            context.drawImage(img, drawX, drawY, drawWidth, drawHeight);
+            ctx.drawImage(img, drawX, drawY, drawWidth, drawHeight);
 
-            // ファイル名用タイムスタンプ
+            // タイムスタンプ付きファイル名
             const now = new Date();
             const timestamp = now.getFullYear().toString()
                 + ('0' + (now.getMonth() + 1)).slice(-2)
