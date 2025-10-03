@@ -3,48 +3,36 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>高杉晋作 - 幕末AR写真1</title>
+    <title>高杉晋作 - 幕末AR写真 (Full HD)</title>
     
     <style>
         body { margin: 0; overflow: hidden; background-color: #000; }
-        
+
         /* カメラ映像 */
         #video-feed {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             object-fit: cover;
-            transform: scaleX(-1);
+            z-index: 1;
         }
 
-        /* キャラクター画像 */
+        /* キャラクター画像（縦向き画面にフィット） */
         #character-overlay {
-            position: fixed; 
-            top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-            width: 70vw;
-            max-width: 500px;
-            z-index: 10;
+            position: fixed; top: 0; left: 0;
+            width: 100vw;
+            height: 100vh;
+            object-fit: contain;
+            z-index: 2;
         }
 
-        /* 撮影ボタン */
+        /* UI（撮影ボタン） */
         #ui-container {
             position: fixed; bottom: 0; left: 0; width: 100%;
-            display: flex; justify-content: center; padding: 20px; z-index: 20;
+            display: flex; justify-content: center; padding: 20px; z-index: 3;
         }
         #capture-button {
             padding: 15px 30px; font-size: 1.2em; background-color: #ffffff;
             color: #333333; border: 2px solid #333333; border-radius: 50px;
             cursor: pointer; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-        }
-
-        /* 日付オーバーレイ */
-        #date-overlay {
-            position: fixed;
-            bottom: 10px; right: 15px;
-            font-size: 1.2em;
-            color: white;
-            text-shadow: 2px 2px 4px black; /* 影で視認性UP */
-            z-index: 15;
-            font-family: Arial, sans-serif;
         }
     </style>
 </head>
@@ -52,9 +40,6 @@
     <video id="video-feed" autoplay playsinline></video>
     
     <img id="character-overlay" src="pf-takasugi2.png" alt="高杉晋作">
-
-    <!-- 日付オーバーレイ -->
-    <div id="date-overlay"></div>
 
     <div id="ui-container">
         <button id="capture-button">📸 撮影</button>
@@ -64,25 +49,19 @@
         const video = document.getElementById('video-feed');
         const captureButton = document.getElementById('capture-button');
         const characterOverlay = document.getElementById('character-overlay');
-        const dateOverlay = document.getElementById('date-overlay');
 
-        // カメラ開始
+        // 背面カメラで縦向き Full HD
         if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-            navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
-                .then(stream => { video.srcObject = stream; })
-                .catch(err => { alert('カメラへのアクセスが拒否されました: ' + err); });
+            navigator.mediaDevices.getUserMedia({ 
+                video: { 
+                    facingMode: "environment",
+                    width: { ideal: 1080 },
+                    height: { ideal: 1920 }
+                } 
+            })
+            .then(stream => { video.srcObject = stream; })
+            .catch(err => { alert('カメラへのアクセスが拒否されました: ' + err); });
         }
-
-        // 日付を更新（1秒ごと）
-        function updateDate() {
-            const now = new Date();
-            const dateText = now.getFullYear() + "/" 
-                + ('0' + (now.getMonth() + 1)).slice(-2) + "/" 
-                + ('0' + now.getDate()).slice(-2);
-            dateOverlay.textContent = dateText;
-        }
-        setInterval(updateDate, 1000);
-        updateDate();
 
         // 撮影処理
         captureButton.addEventListener('click', () => {
@@ -92,37 +71,30 @@
             const canvas = document.createElement('canvas');
             canvas.width = w;
             canvas.height = h;
-            const context = canvas.getContext('2d');
+            const ctx = canvas.getContext('2d');
 
             // カメラ映像
-            context.save();
-            context.scale(-1, 1);
-            context.drawImage(video, -w, 0, w, h);
-            context.restore();
+            ctx.drawImage(video, 0, 0, w, h);
 
-            // キャラクター画像
+            // キャラクター画像（縦横比維持）
             const img = characterOverlay;
-            const imgRatio = img.naturalHeight / img.naturalWidth;
-            const cssVW = 0.7;
-            const finalW = w * cssVW;
-            const finalH = finalW * imgRatio;
-            const finalX = (w - finalW) / 2;
-            const finalY = (h - finalH) / 2;
-            context.drawImage(img, finalX, finalY, finalW, finalH);
+            const imgRatio = img.naturalWidth / img.naturalHeight;
+            const canvasRatio = w / h;
+            let drawWidth, drawHeight;
 
-            // 日付を合成（画面右下）
-            const dateText = dateOverlay.textContent;
-            context.font = `${Math.floor(w * 0.05)}px Arial`;
-            context.fillStyle = "white";
-            context.strokeStyle = "black";
-            context.lineWidth = 4;
-            const margin = 20;
-            const textX = w - margin - context.measureText(dateText).width;
-            const textY = h - margin;
-            context.strokeText(dateText, textX, textY);
-            context.fillText(dateText, textX, textY);
+            if (canvasRatio > imgRatio) {
+                drawHeight = h;
+                drawWidth = drawHeight * imgRatio;
+            } else {
+                drawWidth = w;
+                drawHeight = drawWidth / imgRatio;
+            }
 
-            // ファイル名用のタイムスタンプ
+            const drawX = (w - drawWidth) / 2;
+            const drawY = (h - drawHeight) / 2;
+            ctx.drawImage(img, drawX, drawY, drawWidth, drawHeight);
+
+            // タイムスタンプ付きファイル名
             const now = new Date();
             const timestamp = now.getFullYear().toString()
                 + ('0' + (now.getMonth() + 1)).slice(-2)
@@ -130,7 +102,7 @@
                 + ('0' + now.getHours()).slice(-2)
                 + ('0' + now.getMinutes()).slice(-2)
                 + ('0' + now.getSeconds()).slice(-2);
-            const filename = `matsudaya_ar_photo_${timestamp}.png`;
+            const filename = `matsudaya_ar_photo_FHD_${timestamp}.png`;
 
             // ダウンロード
             const dataURL = canvas.toDataURL('image/png');
