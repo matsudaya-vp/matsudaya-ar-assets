@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>高杉晋作 - 7</title>
+<title>高杉晋作 -8</title>
 <style>
   html, body {
     margin:0;
@@ -11,17 +11,39 @@
     width:100%;
     height:100%;
     overflow:hidden;
-    background-color:transparent; /* 透過部分を保持 */
+    background-color:transparent; /* 透過部分は透明のまま */
   }
 
-  img#character {
-    width:100%;   /* 画面幅に合わせる */
-    height:100%;  /* 画面高さに合わせる */
+  canvas {
     display:block;
   }
 </style>
 </head>
 <body>
-  <img id="character" src="pf-takasugi.png" alt="高杉晋作">
+
+<script>
+function drawImageFullScreen() {
+  const canvas = document.createElement('canvas');
+  document.body.innerHTML = ''; // 既存の要素をクリア
+  document.body.appendChild(canvas);
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  const ctx = canvas.getContext('2d');
+
+  const img = new Image();
+  img.src = "pf-takasugi.png";
+  img.onload = () => {
+    // 画面比率に合わせてリサイズ
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+  };
+}
+
+// 初回描画
+drawImageFullScreen();
+
+// 画面リサイズ時も自動調整
+window.addEventListener('resize', drawImageFullScreen);
+</script>
+
 </body>
 </html>
