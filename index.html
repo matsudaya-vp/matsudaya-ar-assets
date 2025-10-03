@@ -18,28 +18,31 @@
 </head>
 <body style='margin : 0px; overflow: hidden;'>
 
-    <a-scene mindar-image="imageTargetSrc: https://matsudaya-vp.github.io/matsudaya-ar-assets/takasugi_kamon.mind; autoStart: true; filterMinCF: 1; filterBeta: 1; debug: true;"
-             color-space="sRGB" renderer="colorManagement: true, physicallyCorrectLights: true"
-             vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
-        
+    <a-scene 
+        mindar-image="imageTargetSrc: https://matsudaya-vp.github.io/matsudaya-ar-assets/takasugi_kamon.mind; autoStart: true; filterMinCF: 1; filterBeta: 1; debug: true;"
+        color-space="sRGB" 
+        renderer="colorManagement: true, physicallyCorrectLights: true"
+        vr-mode-ui="enabled: false" 
+        device-orientation-permission-ui="enabled: false">
+
         <a-assets>
             <img id="characterTexture" src="shinshaku_takasugi_1.png">
         </a-assets>
 
         <a-entity mindar-image-target="targetIndex: 0">
-            
             <a-entity rotation="0 0 0">
-
                 <a-plane 
-                    width="1.0" height="1.67"          position="0 0.835 0"               rotation="0 0 0"                   
-                    material="src: #characterTexture; transparent: true; alphaTest: 0.5; side: double;"
-                    >
+                    width="1.0" 
+                    height="1.67" 
+                    position="0 0.835 0" 
+                    rotation="0 0 0"
+                    material="src: #characterTexture; transparent: true; alphaTest: 0.5; side: double;">
                 </a-plane>
             </a-entity>
-            
         </a-entity>
 
-        <a-camera active="false" position="0 0 0"></a-camera>
+        <!-- カメラを非反転に設定 -->
+        <a-camera active="true" position="0 0 0" mirror="false"></a-camera>
     </a-scene>
 
     <div id="ui-container">
