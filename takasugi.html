@@ -1,10 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>高杉晋作 - 幕末AR写真</title>
+    
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #000; }
+        
+        /* 1. カメラ映像を画面いっぱいに表示 */
+        #video-feed {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            object-fit: cover;
+            transform: scaleX(-1); /* 自撮り感覚で鏡像反転 */
+        }
+
+        /* 2. キャラクター画像を中央に固定配置 */
+        #character-overlay {
+            position: fixed; 
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 70vw;
+            max-width: 500px;
+            z-index: 10;
+        }
+
+        /* 3. UI（撮影ボタン）のスタイル */
+        #ui-container {
+            position: fixed; bottom: 0; left: 0; width: 100%;
+            display: flex; justify-content: center; padding: 20px; z-index: 20;
+        }
+        #capture-button {
+            padding: 15px 30px; font-size: 1.2em; background-color: #ffffff;
+            color: #333333; border: 2px solid #333333; border-radius: 50px;
+            cursor: pointer; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+    </style>
+</head>
 <body>
     <video id="video-feed" autoplay playsinline></video>
     
     <img id="character-overlay" src="shinshaku_takasugi_1.png" alt="高杉晋作">
-
-    <!-- 日付表示エリア -->
-    <div id="date-display"></div>
 
     <div id="ui-container">
         <button id="capture-button">📸 撮影</button>
@@ -14,26 +50,19 @@
         const video = document.getElementById('video-feed');
         const captureButton = document.getElementById('capture-button');
         const characterOverlay = document.getElementById('character-overlay');
-        const dateDisplay = document.getElementById('date-display');
 
-        // ==== 日付表示 ====
-        function updateDate() {
-            const now = new Date();
-            const y = now.getFullYear();
-            const m = ('0' + (now.getMonth() + 1)).slice(-2);
-            const d = ('0' + now.getDate()).slice(-2);
-            dateDisplay.textContent = `${y}/${m}/${d}`;
-        }
-        updateDate(); // 読み込み時に一度だけ表示
-
-        // ==== カメラ映像の取得 ====
+        // 1. カメラ映像の取得と開始
         if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-            navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
-                .then(stream => { video.srcObject = stream; })
-                .catch(err => { alert('カメラへのアクセスが拒否されました: ' + err); });
+            navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } }) // 背面カメラ優先
+                .then(stream => {
+                    video.srcObject = stream;
+                })
+                .catch(err => {
+                    alert('カメラへのアクセスが拒否されました: ' + err);
+                });
         }
         
-        // ==== 撮影機能 ====
+        // 2. 撮影機能の実装
         captureButton.addEventListener('click', () => {
             const w = video.videoWidth;
             const h = video.videoHeight;
@@ -43,13 +72,13 @@
             canvas.height = h;
             const context = canvas.getContext('2d');
 
-            // カメラ映像
+            // カメラ映像を反転して描画
             context.save();
             context.scale(-1, 1);
             context.drawImage(video, -w, 0, w, h);
             context.restore();
 
-            // キャラクター
+            // キャラクター画像を重ねる
             const img = characterOverlay;
             const imgRatio = img.naturalHeight / img.naturalWidth;
             const cssVW = 0.7;
@@ -59,8 +88,26 @@
             const finalY = (h - finalH) / 2;
             context.drawImage(img, finalX, finalY, finalW, finalH);
 
-            // ファイル名用の日付時刻
+            // 日付テキストを描画 (左下に表示)
             const now = new Date();
+            const dateText = now.getFullYear() + "/" 
+                + ('0' + (now.getMonth() + 1)).slice(-2) + "/" 
+                + ('0' + now.getDate()).slice(-2);
+
+            context.font = `${Math.floor(w * 0.05)}px Arial`; // 写真幅の5%サイズ
+            context.fillStyle = "white";  // 白文字
+            context.strokeStyle = "black"; // 黒縁取り
+            context.lineWidth = 4;
+            const margin = 20;
+
+            const textX = margin;
+            const textY = h - margin;
+
+            // 黒縁を先に描画してから白文字
+            context.strokeText(dateText, textX, textY);
+            context.fillText(dateText, textX, textY);
+
+            // 日時をファイル名に追加
             const timestamp = now.getFullYear().toString()
                 + ('0' + (now.getMonth() + 1)).slice(-2)
                 + ('0' + now.getDate()).slice(-2) + '_'
@@ -80,20 +127,5 @@
             document.body.removeChild(link);
         });
     </script>
-
-    <style>
-        /* 日付表示のデザイン */
-        #date-display {
-            position: fixed;
-            top: 10px; 
-            right: 10px;
-            background: rgba(0,0,0,0.5);
-            color: white;
-            padding: 6px 12px;
-            border-radius: 8px;
-            font-family: sans-serif;
-            font-size: 16px;
-            z-index: 30;
-        }
-    </style>
 </body>
+</html>
