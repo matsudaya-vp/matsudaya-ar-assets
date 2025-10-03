@@ -20,8 +20,8 @@
             position: fixed; 
             top: 50%; left: 50%;
             transform: translate(-50%, -50%);
-            width: 70vw;
-            max-width: 500px;
+            width: 85vw; /* 🌟 修正: 画面幅の85%に拡大 */
+            max-width: 600px; /* 🌟 修正: PCでの最大幅も拡大 */
             z-index: 10;
         }
 
@@ -29,12 +29,12 @@
         #ui-container {
             position: fixed; bottom: 0; left: 0; width: 100%;
             display: flex; justify-content: center; 
-            padding: 25px 20px; /* 🌟 修正: 上下のパディングを増やし、特に下側を見やすく */
+            padding: 25px 20px; /* ボタン周りの余白を確保 */
             z-index: 20;
         }
         #capture-button {
-            padding: 20px 40px; /* 🌟 修正: ボタンの縦横サイズを大きく */
-            font-size: 1.3em; /* 🌟 修正: 文字を少し大きく */
+            padding: 20px 40px; /* ボタンのサイズを大きく */
+            font-size: 1.3em; /* 文字を大きく */
             background-color: #ffffff;
             color: #333333; border: 2px solid #333333; border-radius: 50px;
             cursor: pointer; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
@@ -85,7 +85,7 @@
             // キャラクター画像を重ねる
             const img = characterOverlay;
             const imgRatio = img.naturalHeight / img.naturalWidth;
-            const cssVW = 0.7;
+            const cssVW = 0.85; // CSSの85vwに合わせる
             const finalW = w * cssVW;
             const finalH = finalW * imgRatio;
             const finalX = (w - finalW) / 2;
