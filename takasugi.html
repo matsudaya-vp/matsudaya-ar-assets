@@ -1,229 +1,102 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>高杉晋作 - 3分割透過合成 (最終版)</title>
-    <style>
-        body { margin: 0; overflow: hidden; background: #000; }
-        
-        /* 1. カメラ映像 */
-        #video-feed {
-            position: fixed; top: 0; left: 0;
-            width: 100%; height: 100%;
-            object-fit: cover;
-            z-index: 1;
-        }
-
-        /* 2. キャラクターオーバーレイのコンテナ */
-        #character-container {
-            position: absolute;
-            top: 0; /* JSで上端または中央に設定 */
-            left: 50%; 
-            transform: translateX(-50%); /* 水平中央揃え */
-            
-            /* 【重要】JSで幅を正確に設定するため、CSSは初期設定のみ */
-            width: 100%;
-            max-width: 100vw;
-            max-height: 100vh;
-            overflow: hidden; 
-            
-            z-index: 2;
-            pointer-events: none;
-            display: block; /* Flexboxを使わず、ブロック要素として配置 */
-        }
-        
-        /* 3. 3つのキャラクター画像 */
-        .character-part {
-            display: block; /* 【重要】画像間の隙間（幽霊スペース）を排除 */
-            width: 100%; /* 親コンテナ (#character-container) の幅に合わせる */
-            height: auto; /* 幅に合わせて高さを自動調整 */
-            
-            /* 描画崩れを防ぐための追加設定 */
-            vertical-align: top;
-            line-height: 0;
-            font-size: 0;
-        }
-        
-        /* UIボタン */
-        #ui-container {
-            position: fixed; bottom: 0; left: 0;
-            width: 100%; display: flex; justify-content: center;
-            padding: 20px; z-index: 3;
-        }
-        #capture-button {
-            padding: 15px 30px; font-size: 1.2em;
-            background: #fff; color: #333;
-            border: 2px solid #333; border-radius: 50px;
-            cursor: pointer; box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-        }
-    </style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>高杉晋作 - R1</title>
+  <style>
+    body { margin: 0; overflow: hidden; background: #000; }
+    #video-feed {
+      position: fixed; top: 0; left: 0;
+      width: 100%; height: 100%;
+      object-fit: cover; z-index: 1;
+    }
+    #character-overlay {
+      position: fixed;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      max-width: 100vw; max-height: 100vh;
+      z-index: 2; pointer-events: none;
+    }
+    #ui-container {
+      position: fixed; bottom: 0; left: 0;
+      width: 100%; display: flex; justify-content: center;
+      padding: 20px; z-index: 3;
+    }
+    #capture-button {
+      padding: 15px 30px; font-size: 1.2em;
+      background: #fff; color: #333;
+      border: 2px solid #333; border-radius: 50px;
+      cursor: pointer; box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+  </style>
 </head>
 <body>
-    <video id="video-feed" autoplay playsinline></video>
-    
-    <div id="character-container">
-        <img id="img-top-loader" src="pf-takasug-top.png" class="character-part" alt="高杉晋作 上部">
-        <img id="img-center-loader" src="pf-takasug-center.png" class="character-part" alt="高杉晋作 中央">
-        <img id="img-bottom-loader" src="pf-takasug-bottom.png" class="character-part" alt="高杉晋作 下部">
-    </div>
+  <video id="video-feed" autoplay playsinline></video>
+  <img id="character-overlay" src="pf-takasugi.png" alt="高杉晋作">
+  <div id="ui-container"><button id="capture-button">📸 撮影</button></div>
 
-    <div id="ui-container"><button id="capture-button">📸 撮影</button></div>
+  <script>
+    const video = document.getElementById('video-feed');
+    const overlay = document.getElementById('character-overlay');
+    const captureButton = document.getElementById('capture-button');
 
-    <script>
-        const video = document.getElementById('video-feed');
-        const captureButton = document.getElementById('capture-button');
-        const container = document.getElementById('character-container');
-        
-        const imgTop = document.getElementById('img-top-loader');
-        const imgCenter = document.getElementById('img-center-loader');
-        const imgBottom = document.getElementById('img-bottom-loader');
+    navigator.mediaDevices.getUserMedia({
+      video: { facingMode: "environment", width: { ideal: 1920 }, height: { ideal: 1080 } }
+    }).then(stream => {
+      video.srcObject = stream;
+    }).catch(err => alert("カメラエラー: " + err));
 
-        // ----------------------------------------------------------------
-        // 1. ライブ表示のサイズ調整ロジック (画像ロード完了保証付き)
-        // ----------------------------------------------------------------
+    captureButton.addEventListener('click', () => {
+      const w = video.videoWidth;
+      const h = video.videoHeight;
 
-        let loadedCount = 0;
-        const totalImages = 3;
-        const images = [imgTop, imgCenter, imgBottom];
+      const canvas = document.createElement('canvas');
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext('2d');
 
-        // ライブ表示のサイズ調整関数
-        function adjustOverlaySize() {
-            if (!imgTop.naturalWidth || !imgCenter.naturalWidth || !imgBottom.naturalWidth) {
-                 return;
-            }
+      // 1. カメラ描画（背景）
+      ctx.drawImage(video, 0, 0, w, h);
 
-            // 自然なサイズから結合後の全体アスペクト比を計算
-            const naturalWidth = imgCenter.naturalWidth;
-            const totalNaturalHeight = imgTop.naturalHeight + imgCenter.naturalHeight + imgBottom.naturalHeight;
-            const imageRatio = naturalWidth / totalNaturalHeight;
+      // 2. キャラ画像の描画範囲を計算（中央配置）
+      const img = overlay;
+      const imgRatio = img.naturalWidth / img.naturalHeight;
+      let drawWidth = w;
+      let drawHeight = drawWidth / imgRatio;
+      if (drawHeight > h) {
+        drawHeight = h;
+        drawWidth = drawHeight * imgRatio;
+      }
+      const drawX = (w - drawWidth) / 2;
+      const drawY = (h - drawHeight) / 2;
 
-            const screenWidth = window.innerWidth;
-            const screenHeight = window.innerHeight;
+      // 3. 余白を白で塗りつぶす
+      ctx.fillStyle = "#ffffff";
+      if (drawY > 0) {
+        // 上余白
+        ctx.fillRect(0, 0, w, drawY);
+        // 下余白
+        ctx.fillRect(0, h - drawY, w, drawY);
+      }
+      if (drawX > 0) {
+        // 左余白
+        ctx.fillRect(0, 0, drawX, h);
+        // 右余白
+        ctx.fillRect(w - drawX, 0, drawX, h);
+      }
 
-            // 画面幅基準でスケールした場合の、結合後の合計高さ
-            const heightWhenScaledToWidth = screenWidth / imageRatio;
-            
-            let finalWidth = screenWidth;
-            let finalHeight = heightWhenScaledToWidth;
+      // 4. キャラ画像を透過で重ねる
+      ctx.drawImage(img, drawX, drawY, drawWidth, drawHeight);
 
-            // 画面の高さよりも合計高さが大きい場合（縦長すぎる場合）
-            if (finalHeight > screenHeight) {
-                // 高さ基準でスケールダウン
-                const scaleFactor = screenHeight / finalHeight;
-                finalWidth = screenWidth * scaleFactor;
-                finalHeight = screenHeight;
-                
-                // 【画面上端密着】
-                container.style.top = `0`;
-                container.style.transform = `translateX(-50%)`;
-            } else {
-                // 画像が画面内に収まる場合は、中央に配置
-                container.style.top = `50%`;
-                container.style.transform = `translate(-50%, -50%)`;
-            }
-            
-            // コンテナの幅を計算結果で上書きし、内部の画像 (width: 100%) が追従するようにする
-            container.style.width = `${finalWidth}px`;
-        }
-        
-        // 画像ロード完了後に調整を実行
-        function imageLoaded() {
-            loadedCount++;
-            if (loadedCount === totalImages) {
-                adjustOverlaySize();
-                window.addEventListener('resize', adjustOverlaySize);
-            }
-        }
-
-        images.forEach(img => {
-            if (img.complete) {
-                imageLoaded();
-            } else {
-                img.addEventListener('load', imageLoaded);
-            }
-        });
-
-        // ----------------------------------------------------------------
-        // 2. カメラフィードの開始
-        // ----------------------------------------------------------------
-
-        navigator.mediaDevices.getUserMedia({
-            video: { facingMode: "environment", width: { ideal: 1920 }, height: { ideal: 1080 } }
-        }).then(stream => {
-            video.srcObject = stream;
-        }).catch(err => alert("カメラエラー: " + err));
-
-        // ----------------------------------------------------------------
-        // 3. 撮影ロジック (Canvas描画)
-        // ----------------------------------------------------------------
-        
-        captureButton.addEventListener('click', () => {
-            const w = video.videoWidth; 
-            const h = video.videoHeight; 
-
-            const canvas = document.createElement('canvas');
-            canvas.width = w;
-            canvas.height = h;
-            const ctx = canvas.getContext('2d');
-
-            ctx.drawImage(video, 0, 0, w, h);
-
-            if (!imgTop.naturalWidth || !imgCenter.naturalWidth || !imgBottom.naturalWidth) {
-                 alert("キャラクター画像がまだ読み込まれていません。");
-                 return;
-            }
-
-            const naturalWidth = imgCenter.naturalWidth;
-            const naturalHeightTop = imgTop.naturalHeight;
-            const naturalHeightCenter = imgCenter.naturalHeight;
-            const naturalHeightBottom = imgBottom.naturalHeight;
-            
-            const totalNaturalHeight = naturalHeightTop + naturalHeightCenter + naturalHeightBottom;
-            const imageRatio = naturalWidth / totalNaturalHeight;
-
-            let drawWidth = w; 
-            let totalDrawHeight = drawWidth / imageRatio;
-
-            if (totalDrawHeight > h) {
-                totalDrawHeight = h;
-                drawWidth = totalDrawHeight * imageRatio;
-            }
-
-            const drawHeightTop = totalDrawHeight * (naturalHeightTop / totalNaturalHeight);
-            const drawHeightCenter = totalDrawHeight * (naturalHeightCenter / totalNaturalHeight);
-            const drawHeightBottom = totalDrawHeight * (naturalHeightBottom / totalNaturalHeight);
-
-            const drawX = (w - drawWidth) / 2;
-            let drawY = (h - totalDrawHeight) / 2;
-
-            ctx.fillStyle = "#ffffff";
-            
-            if (drawY > 0) {
-                ctx.fillRect(0, 0, w, drawY); 
-                ctx.fillRect(0, drawY + totalDrawHeight, w, h - (drawY + totalDrawHeight));
-            }
-            
-            if (drawX > 0) {
-                ctx.fillRect(0, drawY, drawX, totalDrawHeight); 
-                ctx.fillRect(w - drawX, drawY, drawX, totalDrawHeight);
-            }
-
-            ctx.drawImage(imgTop, drawX, drawY, drawWidth, drawHeightTop);
-            drawY += drawHeightTop;
-
-            ctx.drawImage(imgCenter, drawX, drawY, drawWidth, drawHeightCenter);
-            drawY += drawHeightCenter;
-
-            ctx.drawImage(imgBottom, drawX, drawY, drawWidth, drawHeightBottom);
-
-            const now = new Date();
-            const timestamp = now.toISOString().replace(/[-:T]/g, "").slice(0,14);
-            const link = document.createElement('a');
-            link.download = `matsudaya_photo_${timestamp}.png`;
-            link.href = canvas.toDataURL("image/png");
-            link.click();
-        });
-    </script>
+      // 5. 保存
+      const now = new Date();
+      const timestamp = now.toISOString().replace(/[-:T]/g, "").slice(0,14);
+      const link = document.createElement('a');
+      link.download = `matsudaya_photo_${timestamp}.png`;
+      link.href = canvas.toDataURL("image/png");
+      link.click();
+    });
+  </script>
 </body>
 </html>
