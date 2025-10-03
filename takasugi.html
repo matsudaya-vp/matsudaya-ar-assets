@@ -8,14 +8,14 @@
     <style>
         body { margin: 0; overflow: hidden; background-color: #000; }
         
-        /* 1. カメラ映像を画面いっぱいに表示 */
+        /* カメラ映像 */
         #video-feed {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             object-fit: cover;
-            transform: scaleX(-1); /* 自撮り感覚で鏡像反転 */
+            transform: scaleX(-1);
         }
 
-        /* 2. キャラクター画像を中央に固定配置 */
+        /* キャラクター画像 */
         #character-overlay {
             position: fixed; 
             top: 50%; left: 50%;
@@ -25,7 +25,7 @@
             z-index: 10;
         }
 
-        /* 3. UI（撮影ボタン）のスタイル */
+        /* 撮影ボタン */
         #ui-container {
             position: fixed; bottom: 0; left: 0; width: 100%;
             display: flex; justify-content: center; padding: 20px; z-index: 20;
@@ -35,12 +35,26 @@
             color: #333333; border: 2px solid #333333; border-radius: 50px;
             cursor: pointer; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
         }
+
+        /* 日付オーバーレイ */
+        #date-overlay {
+            position: fixed;
+            bottom: 10px; right: 15px;
+            font-size: 1.2em;
+            color: white;
+            text-shadow: 2px 2px 4px black; /* 影で視認性UP */
+            z-index: 15;
+            font-family: Arial, sans-serif;
+        }
     </style>
 </head>
 <body>
     <video id="video-feed" autoplay playsinline></video>
     
     <img id="character-overlay" src="shinshaku_takasugi_1.png" alt="高杉晋作">
+
+    <!-- 日付オーバーレイ -->
+    <div id="date-overlay"></div>
 
     <div id="ui-container">
         <button id="capture-button">📸 撮影</button>
@@ -50,19 +64,27 @@
         const video = document.getElementById('video-feed');
         const captureButton = document.getElementById('capture-button');
         const characterOverlay = document.getElementById('character-overlay');
+        const dateOverlay = document.getElementById('date-overlay');
 
-        // 1. カメラ映像の取得と開始
+        // カメラ開始
         if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-            navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } }) // 背面カメラ優先
-                .then(stream => {
-                    video.srcObject = stream;
-                })
-                .catch(err => {
-                    alert('カメラへのアクセスが拒否されました: ' + err);
-                });
+            navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
+                .then(stream => { video.srcObject = stream; })
+                .catch(err => { alert('カメラへのアクセスが拒否されました: ' + err); });
         }
-        
-        // 2. 撮影機能の実装
+
+        // 日付を更新（1秒ごと）
+        function updateDate() {
+            const now = new Date();
+            const dateText = now.getFullYear() + "/" 
+                + ('0' + (now.getMonth() + 1)).slice(-2) + "/" 
+                + ('0' + now.getDate()).slice(-2);
+            dateOverlay.textContent = dateText;
+        }
+        setInterval(updateDate, 1000);
+        updateDate();
+
+        // 撮影処理
         captureButton.addEventListener('click', () => {
             const w = video.videoWidth;
             const h = video.videoHeight;
@@ -72,13 +94,13 @@
             canvas.height = h;
             const context = canvas.getContext('2d');
 
-            // カメラ映像を反転して描画
+            // カメラ映像
             context.save();
             context.scale(-1, 1);
             context.drawImage(video, -w, 0, w, h);
             context.restore();
 
-            // キャラクター画像を重ねる
+            // キャラクター画像
             const img = characterOverlay;
             const imgRatio = img.naturalHeight / img.naturalWidth;
             const cssVW = 0.7;
@@ -88,33 +110,26 @@
             const finalY = (h - finalH) / 2;
             context.drawImage(img, finalX, finalY, finalW, finalH);
 
-            // 日付テキストを描画 (左下に表示)
-            const now = new Date();
-            const dateText = now.getFullYear() + "/" 
-                + ('0' + (now.getMonth() + 1)).slice(-2) + "/" 
-                + ('0' + now.getDate()).slice(-2);
-
-            context.font = `${Math.floor(w * 0.05)}px Arial`; // 写真幅の5%サイズ
-            context.fillStyle = "white";  // 白文字
-            context.strokeStyle = "black"; // 黒縁取り
+            // 日付を合成（画面右下）
+            const dateText = dateOverlay.textContent;
+            context.font = `${Math.floor(w * 0.05)}px Arial`;
+            context.fillStyle = "white";
+            context.strokeStyle = "black";
             context.lineWidth = 4;
             const margin = 20;
-
-            const textX = margin;
+            const textX = w - margin - context.measureText(dateText).width;
             const textY = h - margin;
-
-            // 黒縁を先に描画してから白文字
             context.strokeText(dateText, textX, textY);
             context.fillText(dateText, textX, textY);
 
-            // 日時をファイル名に追加
+            // ファイル名用のタイムスタンプ
+            const now = new Date();
             const timestamp = now.getFullYear().toString()
                 + ('0' + (now.getMonth() + 1)).slice(-2)
                 + ('0' + now.getDate()).slice(-2) + '_'
                 + ('0' + now.getHours()).slice(-2)
                 + ('0' + now.getMinutes()).slice(-2)
                 + ('0' + now.getSeconds()).slice(-2);
-
             const filename = `matsudaya_ar_photo_${timestamp}.png`;
 
             // ダウンロード
