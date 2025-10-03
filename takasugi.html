@@ -1,54 +1,143 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>高杉晋作 - 4</title>
-  <style>
-    body { margin: 0; overflow: hidden; background: #000; }
-    
-    #video-feed {
-      position: fixed; top: 0; left: 0;
-      width: 100%; height: 100%;
-      object-fit: cover; z-index: 1;
-    }
-    
-    /* ★★★ 修正箇所: 画面中央に配置するためのCSSを追加 ★★★ */
-    #character-overlay {
-      position: fixed;
-      /* ↓ 中央配置のための設定を復活 */
-      top: 50%; 
-      left: 50%;
-      transform: translate(-50%, -50%); 
-      /* ↑ 中央配置のための設定を復活 */
-      
-      width: 100vw; 
-      height: 100vh; /* 画面全体を覆う */
-      z-index: 2; 
-      pointer-events: none;
-      
-      /* background-color: #ffffff; は前回削除済み */
-      
-      /* 画像ファイルと表示設定 */
-      background-image: url('pf-takasugi.png');
-      background-size: contain; 
-      background-repeat: no-repeat;
-      background-position: center center; 
-    }
-    /* ★★★ 修正箇所ここまで ★★★ */
-    
-    #ui-container {
-      position: fixed; bottom: 0; left: 0;
-      width: 100%; display: flex; justify-content: center;
-      padding: 20px; z-index: 3;
-    }
-    /* (capture-buttonのスタイルは省略) */
-  </style>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>高杉晋作 - 3分割透過合成</title>
+    <style>
+        /* 基本的なスタイルは既存のものを維持 */
+        body { margin: 0; overflow: hidden; background: #000; }
+        #video-feed {
+            position: fixed; top: 0; left: 0;
+            width: 100%; height: 100%;
+            object-fit: cover; z-index: 1;
+        }
+        /* 元の #character-overlay は削除するか、非表示のままにする */
+        /* 今回は直接Canvasに描画するため、DOM上のオーバーレイは不要 */
+        
+        #ui-container {
+            position: fixed; bottom: 0; left: 0;
+            width: 100%; display: flex; justify-content: center;
+            padding: 20px; z-index: 3;
+        }
+        #capture-button {
+            padding: 15px 30px; font-size: 1.2em;
+            background: #fff; color: #333;
+            border: 2px solid #333; border-radius: 50px;
+            cursor: pointer; box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+    </style>
 </head>
 <body>
-  <div id="character-overlay"></div>
-  <script>
-    // JavaScriptコードは変更なし
-  </script>
+    <video id="video-feed" autoplay playsinline></video>
+    
+    <img id="img-top-loader" src="pf-takasug-top.png" style="display:none;" alt="高杉晋作 上部">
+    <img id="img-center-loader" src="pf-takasug-center.png" style="display:none;" alt="高杉晋作 中央">
+    <img id="img-bottom-loader" src="pf-takasug-bottom.png" style="display:none;" alt="高杉晋作 下部">
+
+    <div id="ui-container"><button id="capture-button">📸 撮影</button></div>
+
+    <script>
+        const video = document.getElementById('video-feed');
+        const captureButton = document.getElementById('capture-button');
+        
+        // 3つの画像要素を取得
+        const imgTop = document.getElementById('img-top-loader');
+        const imgCenter = document.getElementById('img-center-loader');
+        const imgBottom = document.getElementById('img-bottom-loader');
+
+        // 1. カメラフィードの開始（既存と同じ）
+        navigator.mediaDevices.getUserMedia({
+            video: { facingMode: "environment", width: { ideal: 1920 }, height: { ideal: 1080 } }
+        }).then(stream => {
+            video.srcObject = stream;
+        }).catch(err => alert("カメラエラー: " + err));
+
+        captureButton.addEventListener('click', () => {
+            const w = video.videoWidth; // Canvas幅
+            const h = video.videoHeight; // Canvas高さ
+
+            const canvas = document.createElement('canvas');
+            canvas.width = w;
+            canvas.height = h;
+            const ctx = canvas.getContext('2d');
+
+            // 1. カメラ描画（背景）
+            ctx.drawImage(video, 0, 0, w, h);
+
+            // --- 2. キャラ画像の描画範囲を計算（中央配置・3分割対応） ---
+
+            // 画像がロード済みかチェック
+            if (!imgTop.naturalWidth || !imgCenter.naturalWidth || !imgBottom.naturalWidth) {
+                 alert("キャラクター画像がまだ読み込まれていません。画像を正しく配置してください。");
+                 return;
+            }
+
+            // 各パーツの自然なサイズを取得
+            const naturalWidth = imgCenter.naturalWidth; // すべてのパーツで幅が同じと仮定
+            const naturalHeightTop = imgTop.naturalHeight;
+            const naturalHeightCenter = imgCenter.naturalHeight;
+            const naturalHeightBottom = imgBottom.naturalHeight;
+            
+            const totalNaturalHeight = naturalHeightTop + naturalHeightCenter + naturalHeightBottom;
+            const imageRatio = naturalWidth / totalNaturalHeight; // 結合後の全体のアスペクト比
+
+            let drawWidth = w; // 描画する画像群の幅（初期値: キャンバス幅）
+            let totalDrawHeight = drawWidth / imageRatio; // 描画する画像群の合計高さ（初期値）
+
+            // 描画幅の調整：画像群がキャンバスの高さからはみ出す場合
+            if (totalDrawHeight > h) {
+                // 高さに合わせてスケールダウン
+                totalDrawHeight = h;
+                drawWidth = totalDrawHeight * imageRatio;
+            }
+
+            // スケール後の各パーツの高さ計算
+            // (スケール後の高さ) = (合計描画高さ) * (パーツの自然な高さ) / (合計自然な高さ)
+            const drawHeightTop = totalDrawHeight * (naturalHeightTop / totalNaturalHeight);
+            const drawHeightCenter = totalDrawHeight * (naturalHeightCenter / totalNaturalHeight);
+            const drawHeightBottom = totalDrawHeight * (naturalHeightBottom / totalNaturalHeight);
+
+            // 描画開始位置（水平・垂直方向の中央）
+            const drawX = (w - drawWidth) / 2;
+            let drawY = (h - totalDrawHeight) / 2; // 最上部のパーツのY座標
+
+            // --- 3. 余白を白で塗りつぶす ---
+            ctx.fillStyle = "#ffffff";
+            
+            // 上下の余白（画像領域の外側）
+            if (drawY > 0) {
+                ctx.fillRect(0, 0, w, drawY); // 上余白
+                ctx.fillRect(0, drawY + totalDrawHeight, w, h - (drawY + totalDrawHeight)); // 下余白
+            }
+            
+            // 左右の余白（画像領域の左右）
+            if (drawX > 0) {
+                ctx.fillRect(0, drawY, drawX, totalDrawHeight); // 左余白
+                ctx.fillRect(w - drawX, drawY, drawX, totalDrawHeight); // 右余白
+            }
+
+            // --- 4. キャラ画像を透過で重ねる（3つのパーツを描画） ---
+            
+            // Topを描画し、次のパーツの開始Y座標を更新
+            ctx.drawImage(imgTop, drawX, drawY, drawWidth, drawHeightTop);
+            drawY += drawHeightTop;
+
+            // Centerを描画し、次のパーツの開始Y座標を更新
+            ctx.drawImage(imgCenter, drawX, drawY, drawWidth, drawHeightCenter);
+            drawY += drawHeightCenter;
+
+            // Bottomを描画
+            ctx.drawImage(imgBottom, drawX, drawY, drawWidth, drawHeightBottom);
+
+            // 5. 保存（既存と同じ）
+            const now = new Date();
+            const timestamp = now.toISOString().replace(/[-:T]/g, "").slice(0,14);
+            const link = document.createElement('a');
+            link.download = `matsudaya_photo_${timestamp}.png`;
+            link.href = canvas.toDataURL("image/png");
+            link.click();
+        });
+    </script>
 </body>
 </html>
