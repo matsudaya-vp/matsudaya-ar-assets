@@ -5,20 +5,44 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>中央切り出し iPhone X/11/12 縦長撮影2228</title>
 <style>
-  body { margin:0; overflow:hidden; background:#000; }
-  /* スマホ画面にベタ表示 */
-  #video-feed, #character-overlay {
-    position:fixed; top:0; left:0; width:100%; height:100%; object-fit:cover;
-    z-index:1;
-  }
-  #character-overlay { z-index:2; }
-  #ui-container {
-    position:fixed; bottom:0; width:100%; display:flex; justify-content:center; z-index:3;
-  }
-  #capture-button {
-    padding:15px 30px; font-size:1.2em; border-radius:50px; cursor:pointer; background:#fff; color:#333;
-    border:2px solid #333; box-shadow:0 4px 8px rgba(0,0,0,0.2);
-  }
+  body { margin:0; overflow:hidden; background:#000; }
+  /* スマホ画面にベタ表示 */
+  #video-feed, #character-overlay {
+    position:fixed; top:0; left:0; width:100%; height:100%; object-fit:cover;
+    z-index:1;
+  }
+  #character-overlay { z-index:2; }
+  
+  /* --- UIコンテナの修正 --- */
+  #ui-container {
+    position:fixed; 
+    bottom:0; 
+    width:100%; 
+    /* 縦方向のスペースを確保し、中央に配置するためFlexboxを使用 */
+    height: 100px; /* UI領域の高さを指定（例として100px） */
+    display:flex; 
+    justify-content:center; /* 横方向の中央配置 */
+    align-items:center; /* 縦方向の中央配置 */
+    z-index:3;
+    /* 背景を少し透過させて見やすくする */
+    background: rgba(0, 0, 0, 0.3);
+  }
+  
+  /* --- 撮影ボタンの修正 --- */
+  #capture-button {
+    /* パディングを大きくしてボタンのサイズを拡大 */
+    padding: 25px 50px; 
+    font-size: 1.8em; /* フォントサイズを拡大 */
+    
+    border-radius:50px; 
+    cursor:pointer; 
+    
+    /* 目立つように白背景に濃い色を適用 */
+    background:#fff; 
+    color:#333;
+    border:4px solid #333; /* 枠線を太くする */
+    box-shadow:0 6px 12px rgba(0,0,0,0.4); /* 影を濃くする */
+  }
 </style>
 </head>
 <body>
@@ -33,60 +57,60 @@ const captureButton = document.getElementById('capture-button');
 
 // 背面カメラ（高解像度を希望）
 navigator.mediaDevices.getUserMedia({
-  video: { facingMode: "environment", width: { ideal: 2436 }, height: { ideal: 1125 } }
+  video: { facingMode: "environment", width: { ideal: 2436 }, height: { ideal: 1125 } }
 }).then(stream => { video.srcObject = stream; })
-  .catch(err => alert("カメラアクセスエラー: " + err));
+  .catch(err => alert("カメラアクセスエラー: " + err));
 
 // 撮影処理（画面中央を基準にHD切り出し）
 captureButton.addEventListener('click', () => {
-  const HD_W = 1080;   // 切り出し幅
-  const HD_H = 1920;   // 切り出し高さ
-  const canvas = document.createElement('canvas');
-  canvas.width = HD_W;
-  canvas.height = HD_H;
-  const ctx = canvas.getContext('2d');
+  const HD_W = 1080;   // 切り出し幅
+  const HD_H = 1920;   // 切り出し高さ
+  const canvas = document.createElement('canvas');
+  canvas.width = HD_W;
+  canvas.height = HD_H;
+  const ctx = canvas.getContext('2d');
 
-  // video の中央を切り出す
-  const videoRatio = video.videoWidth / video.videoHeight;
-  const canvasRatio = HD_W / HD_H;
+  // video の中央を切り出す
+  const videoRatio = video.videoWidth / video.videoHeight;
+  const canvasRatio = HD_W / HD_H;
 
-  let srcW, srcH, srcX, srcY;
-  if(videoRatio > canvasRatio){
-    srcH = video.videoHeight;
-    srcW = srcH * canvasRatio;
-    srcX = (video.videoWidth - srcW)/2;
-    srcY = 0;
-  } else {
-    srcW = video.videoWidth;
-    srcH = srcW / canvasRatio;
-    srcX = 0;
-    srcY = (video.videoHeight - srcH)/2;
-  }
-  ctx.drawImage(video, srcX, srcY, srcW, srcH, 0, 0, HD_W, HD_H);
+  let srcW, srcH, srcX, srcY;
+  if(videoRatio > canvasRatio){
+    srcH = video.videoHeight;
+    srcW = srcH * canvasRatio;
+    srcX = (video.videoWidth - srcW)/2;
+    srcY = 0;
+  } else {
+    srcW = video.videoWidth;
+    srcH = srcW / canvasRatio;
+    srcX = 0;
+    srcY = (video.videoHeight - srcH)/2;
+  }
+  ctx.drawImage(video, srcX, srcY, srcW, srcH, 0, 0, HD_W, HD_H);
 
-  // キャラクター画像も中央基準で切り出す
-  const imgRatio = overlay.naturalWidth / overlay.naturalHeight;
-  let imgW, imgH, imgX, imgY;
-  if(imgRatio > canvasRatio){
-    imgH = overlay.naturalHeight;
-    imgW = imgH * canvasRatio;
-    imgX = (overlay.naturalWidth - imgW)/2;
-    imgY = 0;
-  } else {
-    imgW = overlay.naturalWidth;
-    imgH = imgW / canvasRatio;
-    imgX = 0;
-    imgY = (overlay.naturalHeight - imgH)/2;
-  }
-  ctx.drawImage(overlay, imgX, imgY, imgW, imgH, 0, 0, HD_W, HD_H);
+  // キャラクター画像も中央基準で切り出す
+  const imgRatio = overlay.naturalWidth / overlay.naturalHeight;
+  let imgW, imgH, imgX, imgY;
+  if(imgRatio > canvasRatio){
+    imgH = overlay.naturalHeight;
+    imgW = imgH * canvasRatio;
+    imgX = (overlay.naturalWidth - imgW)/2;
+    imgY = 0;
+  } else {
+    imgW = overlay.naturalWidth;
+    imgH = imgW / canvasRatio;
+    imgX = 0;
+    imgY = (overlay.naturalHeight - imgH)/2;
+  }
+  ctx.drawImage(overlay, imgX, imgY, imgW, imgH, 0, 0, HD_W, HD_H);
 
-  // タイムスタンプ付きファイル名
-  const now = new Date();
-  const timestamp = now.toISOString().replace(/[-:T]/g,"").slice(0,14);
-  const link = document.createElement('a');
-  link.download = `matsudaya_photo_${timestamp}.png`;
-  link.href = canvas.toDataURL("image/png");
-  link.click();
+  // タイムスタンプ付きファイル名
+  const now = new Date();
+  const timestamp = now.toISOString().replace(/[-:T]/g,"").slice(0,14);
+  const link = document.createElement('a');
+  link.download = `matsudaya_photo_${timestamp}.png`;
+  link.href = canvas.toDataURL("image/png");
+  link.click();
 });
 </script>
 </body>
