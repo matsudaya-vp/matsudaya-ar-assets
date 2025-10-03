@@ -50,11 +50,17 @@
         const captureButton = document.getElementById('capture-button');
         const characterOverlay = document.getElementById('character-overlay');
 
-        // 背面カメラで等倍（解像度指定なし）
+        // 背面カメラで高解像度
         if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-            navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
-                .then(stream => { video.srcObject = stream; })
-                .catch(err => { alert('カメラへのアクセスが拒否されました: ' + err); });
+            navigator.mediaDevices.getUserMedia({ 
+                video: { 
+                    facingMode: "environment",
+                    width: { ideal: 2436 },
+                    height: { ideal: 1125 }
+                } 
+            })
+            .then(stream => { video.srcObject = stream; })
+            .catch(err => { alert('カメラへのアクセスが拒否されました: ' + err); });
         }
 
         // 撮影処理
@@ -67,10 +73,10 @@
             canvas.height = h;
             const ctx = canvas.getContext('2d');
 
-            // カメラ映像（反転なし）
+            // カメラ映像
             ctx.drawImage(video, 0, 0, w, h);
 
-            // キャラクター画像（縦横比を維持して画面いっぱい）
+            // キャラクター画像（縦横比維持）
             const img = characterOverlay;
             const imgRatio = img.naturalWidth / img.naturalHeight;
             const canvasRatio = w / h;
