@@ -1,48 +1,46 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>高杉晋作 - スマホ画面に収まるAR写真</title>
-<style>
-  body { margin: 0; overflow: hidden; background-color: #000; }
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>高杉晋作 - フル画面AR撮影</title>
+  <style>
+    body { margin: 0; overflow: hidden; background-color: #000; }
 
-  /* カメラ映像 */
-  #video-feed {
-    position: fixed; top: 0; left: 0;
-    width: 100%; height: 100%;
-    object-fit: cover;
-    z-index: 1;
-  }
+    /* カメラ映像 */
+    #video-feed {
+      position: fixed; top: 0; left: 0;
+      width: 100%; height: 100%;
+      object-fit: cover; /* 画面いっぱい表示、切れありOK */
+      z-index: 1;
+    }
 
-  /* キャラクター画像（縦横比を維持して中央表示） */
-  #character-overlay {
-    position: fixed; top: 50%; left: 50%;
-    transform: translate(-50%, -50%);
-    width: 100vw;
-    height: 100vh;
-    object-fit: contain; /* 縦横比を維持して画面内に収める */
-    z-index: 2;
-  }
+    /* キャラクター画像 */
+    #character-overlay {
+      position: fixed; top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      object-fit: cover; /* 画面いっぱい表示、切れありOK */
+      z-index: 2;
+    }
 
-  /* UI（撮影ボタン） */
-  #ui-container {
-    position: fixed; bottom: 0; left: 0; width: 100%;
-    display: flex; justify-content: center; padding: 20px; z-index: 3;
-  }
-  #capture-button {
-    padding: 15px 30px; font-size: 1.2em;
-    background-color: #fff; color: #333;
-    border: 2px solid #333; border-radius: 50px;
-    cursor: pointer; box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-  }
-</style>
+    /* UI */
+    #ui-container {
+      position: fixed; bottom: 0; left: 0; width: 100%;
+      display: flex; justify-content: center; padding: 20px; z-index: 3;
+    }
+    #capture-button {
+      padding: 15px 30px; font-size: 1.2em;
+      background-color: #fff; color: #333;
+      border: 2px solid #333; border-radius: 50px;
+      cursor: pointer; box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+  </style>
 </head>
 <body>
   <video id="video-feed" autoplay playsinline></video>
-  <img id="character-overlay" src="pf-takasugi.png" alt="高杉晋作">
+  <img id="character-overlay" src="pf-takasugi-1080x1920.png" alt="高杉晋作">
   <div id="ui-container">
-    <button id="capture-button">?? 撮影</button>
+    <button id="capture-button">📸 撮影</button>
   </div>
 
   <script>
@@ -50,12 +48,14 @@
     const overlay = document.getElementById('character-overlay');
     const captureButton = document.getElementById('capture-button');
 
-    // 背面カメラで高解像度
+    // 背面カメラで等倍高解像度
     navigator.mediaDevices.getUserMedia({
       video: { facingMode: "environment", width: { ideal: 1920 }, height: { ideal: 1080 } }
-    }).then(stream => { video.srcObject = stream; })
-      .catch(err => alert("カメラエラー: " + err));
+    })
+    .then(stream => { video.srcObject = stream; })
+    .catch(err => alert("カメラエラー: " + err));
 
+    // 撮影処理
     captureButton.addEventListener('click', () => {
       const w = video.videoWidth;
       const h = video.videoHeight;
@@ -68,21 +68,8 @@
       // カメラ映像（等倍）
       ctx.drawImage(video, 0, 0, w, h);
 
-      // キャラクター画像（縦横比維持で中央に収める）
-      const imgRatio = overlay.naturalWidth / overlay.naturalHeight;
-      const canvasRatio = w / h;
-      let drawWidth, drawHeight;
-
-      if (canvasRatio > imgRatio) {
-        drawHeight = h;
-        drawWidth = drawHeight * imgRatio;
-      } else {
-        drawWidth = w;
-        drawHeight = drawWidth / imgRatio;
-      }
-      const drawX = (w - drawWidth) / 2;
-      const drawY = (h - drawHeight) / 2;
-      ctx.drawImage(overlay, drawX, drawY, drawWidth, drawHeight);
+      // キャラクター画像（画面いっぱいに描画、切れありOK）
+      ctx.drawImage(overlay, 0, 0, w, h);
 
       // タイムスタンプ付きファイル名
       const now = new Date();
