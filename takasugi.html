@@ -1,49 +1,102 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>高杉晋作 -8</title>
-<style>
-  html, body {
-    margin:0;
-    padding:0;
-    width:100%;
-    height:100%;
-    overflow:hidden;
-    background-color:transparent; /* 透過部分は透明のまま */
-  }
-
-  canvas {
-    display:block;
-  }
-</style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>高杉晋作 - 1</title>
+  <style>
+    body { margin: 0; overflow: hidden; background: #000; }
+    #video-feed {
+      position: fixed; top: 0; left: 0;
+      width: 100%; height: 100%;
+      object-fit: cover; z-index: 1;
+    }
+    #character-overlay {
+      position: fixed;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      max-width: 100vw; max-height: 100vh;
+      z-index: 2; pointer-events: none;
+    }
+    #ui-container {
+      position: fixed; bottom: 0; left: 0;
+      width: 100%; display: flex; justify-content: center;
+      padding: 20px; z-index: 3;
+    }
+    #capture-button {
+      padding: 15px 30px; font-size: 1.2em;
+      background: #fff; color: #333;
+      border: 2px solid #333; border-radius: 50px;
+      cursor: pointer; box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+  </style>
 </head>
 <body>
+  <video id="video-feed" autoplay playsinline></video>
+  <img id="character-overlay" src="pf-takasugi.png" alt="高杉晋作">
+  <div id="ui-container"><button id="capture-button">📸 撮影</button></div>
 
-<script>
-function drawImageFullScreen() {
-  const canvas = document.createElement('canvas');
-  document.body.innerHTML = ''; // 既存の要素をクリア
-  document.body.appendChild(canvas);
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
-  const ctx = canvas.getContext('2d');
+  <script>
+    const video = document.getElementById('video-feed');
+    const overlay = document.getElementById('character-overlay');
+    const captureButton = document.getElementById('capture-button');
 
-  const img = new Image();
-  img.src = "pf-takasugi.png";
-  img.onload = () => {
-    // 画面比率に合わせてリサイズ
-    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-  };
-}
+    navigator.mediaDevices.getUserMedia({
+      video: { facingMode: "environment", width: { ideal: 1920 }, height: { ideal: 1080 } }
+    }).then(stream => {
+      video.srcObject = stream;
+    }).catch(err => alert("カメラエラー: " + err));
 
-// 初回描画
-drawImageFullScreen();
+    captureButton.addEventListener('click', () => {
+      const w = video.videoWidth;
+      const h = video.videoHeight;
 
-// 画面リサイズ時も自動調整
-window.addEventListener('resize', drawImageFullScreen);
-</script>
+      const canvas = document.createElement('canvas');
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext('2d');
 
+      // 1. カメラ描画（背景）
+      ctx.drawImage(video, 0, 0, w, h);
+
+      // 2. キャラ画像の描画範囲を計算（中央配置）
+      const img = overlay;
+      const imgRatio = img.naturalWidth / img.naturalHeight;
+      let drawWidth = w;
+      let drawHeight = drawWidth / imgRatio;
+      if (drawHeight > h) {
+        drawHeight = h;
+        drawWidth = drawHeight * imgRatio;
+      }
+      const drawX = (w - drawWidth) / 2;
+      const drawY = (h - drawHeight) / 2;
+
+      // 3. 余白を白で塗りつぶす
+      ctx.fillStyle = "#ffffff";
+      if (drawY > 0) {
+        // 上余白
+        ctx.fillRect(0, 0, w, drawY);
+        // 下余白
+        ctx.fillRect(0, h - drawY, w, drawY);
+      }
+      if (drawX > 0) {
+        // 左余白
+        ctx.fillRect(0, 0, drawX, h);
+        // 右余白
+        ctx.fillRect(w - drawX, 0, drawX, h);
+      }
+
+      // 4. キャラ画像を透過で重ねる
+      ctx.drawImage(img, drawX, drawY, drawWidth, drawHeight);
+
+      // 5. 保存
+      const now = new Date();
+      const timestamp = now.toISOString().replace(/[-:T]/g, "").slice(0,14);
+      const link = document.createElement('a');
+      link.download = `matsudaya_photo_${timestamp}.png`;
+      link.href = canvas.toDataURL("image/png");
+      link.click();
+    });
+  </script>
 </body>
 </html>
