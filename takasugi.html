@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>高杉晋作 - 4</title>
+    <title>高杉晋作 - 3分割透過合成 (再修正)</title>
     <style>
         body { margin: 0; overflow: hidden; background: #000; }
         
@@ -11,7 +11,7 @@
         #video-feed {
             position: fixed; top: 0; left: 0;
             width: 100%; height: 100%;
-            object-fit: cover; /* 画面全体を覆う */
+            object-fit: cover;
             z-index: 1;
         }
 
@@ -21,12 +21,17 @@
             top: 0; left: 0;
             width: 100%;
             height: 100%;
-            display: flex; /* Flexboxで画像群を垂直方向に中央揃え */
+            /* Flexboxで画像群を垂直方向中央揃え */
+            display: flex;
             flex-direction: column;
             justify-content: center; /* 垂直方向中央揃え */
             align-items: center; /* 水平方向中央揃え */
             z-index: 2;
-            pointer-events: none; /* 下のカメラ操作を可能にする */
+            pointer-events: none;
+            
+            /* 【💡修正ポイント】画像の合計サイズが画面を超えないようにします */
+            max-height: 100vh; /* ビューポートの高さを超えない */
+            overflow: hidden; /* 万が一はみ出した部分を非表示にする */
         }
         
         /* 3. 3つのキャラクター画像 */
@@ -34,10 +39,13 @@
             /* 画面に収まるように幅を最大化し、高さを自動調整 */
             max-width: 100vw;
             height: auto;
-            /* 重要なプロパティ: 画面の高さに収まらない場合、縮小されるように調整 */
-            max-height: 100%; /* 親コンテナの高さに依存 */
-            /* 3つの画像が連結しているように見せるため、隙間をなくす */
             display: block;
+            
+            /* 【💡修正ポイント】Flexbox内で画像が引き伸ばされるのを防ぎ、
+               連結時のわずかな隙間をなくすためにネガティブマージンを適用します */
+            margin: -1px 0; /* わずかな負のマージンで、連結の隙間を吸収 */
+            flex-shrink: 1; /* 親要素が小さくなったら縮小することを許可 */
+            min-height: 0;  /* 最小の高さを0に設定し、内容物よりも大きくならないようにする */
         }
         
         /* UIボタン */
@@ -66,10 +74,12 @@
     <div id="ui-container"><button id="capture-button">📸 撮影</button></div>
 
     <script>
+        // JavaScript部分は前回の回答と変更ありません。
+        // Canvasへの描画処理はすでに画面比率を考慮して計算されているため、
+        // ライブ表示の修正には影響しません。
         const video = document.getElementById('video-feed');
         const captureButton = document.getElementById('capture-button');
         
-        // 3つの画像要素を取得 (描画処理でも使用)
         const imgTop = document.getElementById('img-top-loader');
         const imgCenter = document.getElementById('img-center-loader');
         const imgBottom = document.getElementById('img-bottom-loader');
@@ -81,7 +91,7 @@
             video.srcObject = stream;
         }).catch(err => alert("カメラエラー: " + err));
 
-        // 2. 撮影ロジック (前の回答と同じ、分割画像をCanvasに描画する処理)
+        // 2. 撮影ロジック 
         captureButton.addEventListener('click', () => {
             const w = video.videoWidth; 
             const h = video.videoHeight; 
