@@ -18,8 +18,10 @@
 
   #ui-container {
     position:fixed;
-    /* top/bottom の値はJSで動的に設定するため、ここでは初期設定は不要 */
-    /* top: 80%; または bottom: 20%; は削除/コメントアウト */
+    /* --- 位置修正点: dvhを使用し、画面上から80%にボタンの中心を固定 --- */
+    top: 80dvh; /* Dynamic Viewport Height の80%に設定 */
+    /* JSによるtop設定は削除し、CSSで固定値に戻す */
+    /* ---------------------- */
     width:100%;
     display:flex;
     justify-content:center;
@@ -42,13 +44,13 @@
     display: flex;
     justify-content: center;
     align-items: center;
-    /* JSで位置を正確に中央に持ってくるため、自身の高さの半分だけ上にオフセット */
+    /* ボタンの中心をtop: 80dvhの位置に正確に持ってくる */
     transform: translateY(-50%); 
   }
 
   /* ボタン内のアイコン/テキストのサイズ調整 */
   #capture-button::before {
-    content: "Shot";
+    content: "📸";
     font-size: 6vw; /* 15vw に収まるように調整 */
   }
 </style>
@@ -63,28 +65,16 @@
 const video = document.getElementById('video-feed');
 const overlay = document.getElementById('character-overlay');
 const captureButton = document.getElementById('capture-button');
-const uiContainer = document.getElementById('ui-container'); // ui-containerを取得
+// const uiContainer = document.getElementById('ui-container'); // JSで位置調整しないため不要
 
 /**
- * オーバーレイ画像の下端にボタンの中央を合わせる
- * - transform: translateY(-50%) がボタンに適用されているため、
- * コンテナの上端をオーバーレイ画像の下端に設定することで、ボタンの中央が画像の下端に来る。
+ * 画面サイズ変更時に特に何もする必要がないように
+ * CSSのdvhで対応するため、この関数は最小化します。
  */
 function adjustButtonPosition() {
-    // getBoundingClientRect() で要素のビューポート内の正確な位置とサイズを取得
-    const overlayRect = overlay.getBoundingClientRect();
-    
-    // 画像の下端のY座標を取得 (これがボタンコンテナの top の基準となる)
-    const overlayBottom = overlayRect.bottom;
-    
-    // ui-container の top スタイルを動的に設定
-    // 画像の下端にコンテナの上端を合わせる
-    uiContainer.style.top = `${overlayBottom}px`;
-
-    // 補足: 
-    // ボタンのCSSに transform: translateY(-50%) が適用されているため、
-    // ボタンの「中心」が画像の下端 (overlayBottom) に位置します。
-    // もし、ボタンの「上端」を画像の下端に合わせたい場合は、 transform: translateY(-50%) を削除してください。
+    // 現在はCSS (dvh) で位置を調整しているため、ここでは特別な処理は不要です。
+    // 将来的に他の要素の位置を調整したい場合に備えて関数は残しておきます。
+    console.log("Button position is controlled by CSS (dvh).");
 }
 
 
@@ -94,8 +84,7 @@ navigator.mediaDevices.getUserMedia({
 }).then(stream => { 
     video.srcObject = stream; 
     
-    // 動画のロード完了とオーバーレイ画像の読み込み完了を待って位置を調整
-    // 画像の自然な読み込みを待つ
+    // オーバーレイ画像のロードを待つ処理は不要ですが、念のため残しておきます。
     if (overlay.complete) {
         adjustButtonPosition();
     } else {
@@ -104,7 +93,7 @@ navigator.mediaDevices.getUserMedia({
     
 }).catch(err => alert("カメラアクセスエラー: " + err));
 
-// 画面サイズ変更時にも位置を調整（スマホの回転やツールバーの出し入れに対応）
+// 画面サイズ変更時にも位置を調整（dvh対応のブラウザではCSSが自動調整するため、必須ではありませんが念のため残します）
 window.addEventListener('resize', adjustButtonPosition);
 window.addEventListener('orientationchange', adjustButtonPosition);
 
