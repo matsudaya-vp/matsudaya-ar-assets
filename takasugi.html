@@ -44,7 +44,6 @@
   /* ボタンコンテナを画像基準で配置 */
   #ui-container {
     position: absolute;
-    /* 画像の下部から一定の位置に配置（画像サイズ基準） */
     bottom: 12%;
     left: 50%;
     transform: translateX(-50%);
@@ -52,15 +51,13 @@
   }
 
   #capture-button {
-    /* ビューポートではなく、コンテナサイズ基準でサイズを決定 */
+    /* 固定サイズでブラウザ間の差異を統一 */
     width: 80px;
     height: 80px;
-    min-width: 60px;
-    min-height: 60px;
-    max-width: 100px;
-    max-height: 100px;
     padding: 0;
+    margin: 0;
     font-size: 0;
+    line-height: 1;
     border-radius: 50%;
     cursor: pointer;
     background: #E0E0E0;
@@ -69,45 +66,48 @@
     box-shadow: 0 6px 12px rgba(0,0,0,0.3);
     transition: all 0.2s ease;
     user-select: none;
+    
+    /* ブラウザ固有のスタイルをリセット */
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    outline: none;
+    
+    /* ボックスサイズを統一 */
+    box-sizing: border-box;
+    
+    /* フレックスで中央揃え（念のため） */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    
+    /* タッチ領域を確保 */
+    min-width: 44px;
+    min-height: 44px;
   }
 
   #capture-button:active {
     transform: scale(0.95);
   }
 
-  /* レスポンシブ対応：小さい画面での調整 */
-  @media (max-width: 480px) {
-    #ui-container {
-      bottom: 10%;
-    }
-    
+  #capture-button:focus {
+    outline: 2px solid rgba(255, 255, 255, 0.5);
+    outline-offset: 2px;
+  }
+
+  /* 小さい画面でのサイズ調整（必要最小限） */
+  @media (max-width: 360px) {
     #capture-button {
       width: 70px;
       height: 70px;
     }
   }
 
-  /* 横画面対応 */
-  @media (orientation: landscape) {
-    #ui-container {
-      bottom: 8%;
-    }
-    
+  /* 大きい画面でのサイズ調整（必要最小限） */
+  @media (min-width: 1024px) {
     #capture-button {
-      width: 60px;
-      height: 60px;
-    }
-  }
-
-  /* 大きい画面での調整 */
-  @media (min-width: 1200px) {
-    #ui-container {
-      bottom: 15%;
-    }
-    
-    #capture-button {
-      width: 100px;
-      height: 100px;
+      width: 90px;
+      height: 90px;
     }
   }
 
@@ -123,6 +123,8 @@
     border-radius: 20px;
     z-index: 4;
     display: none;
+    font-size: 14px;
+    box-sizing: border-box;
   }
 
   .camera-flash {
@@ -155,6 +157,8 @@
     text-align: center;
     max-width: 80%;
     display: none;
+    box-sizing: border-box;
+    font-size: 16px;
   }
 
   .button-processing {
@@ -176,6 +180,11 @@
     bottom: 12%;
     left: 50%;
     transform: translateX(-50%);
+  }
+
+  /* 全体的なボックスサイズ統一 */
+  * {
+    box-sizing: border-box;
   }
 </style>
 </head>
@@ -203,7 +212,7 @@
 
 /**
  * 改善されたPhotoFrameアプリ
- * ボタン位置固定版
+ * ボタンサイズ統一版
  */
 class ImprovedPhotoFrame {
   constructor() {
@@ -241,43 +250,10 @@ class ImprovedPhotoFrame {
       await this.initCamera();
       await this.waitForOverlay();
       this.setupEvents();
-      this.adjustLayout(); // レイアウト調整を追加
       console.log('App initialized successfully');
     } catch (error) {
       this.showError('初期化に失敗しました: ' + error.message);
     }
-  }
-
-  // 画面サイズに応じたレイアウト調整
-  adjustLayout() {
-    const adjustButton = () => {
-      const containerRect = this.mainContainer.getBoundingClientRect();
-      const minDimension = Math.min(containerRect.width, containerRect.height);
-      
-      // コンテナサイズに応じてボタンサイズを調整
-      let buttonSize;
-      if (minDimension < 400) {
-        buttonSize = 60;
-      } else if (minDimension < 600) {
-        buttonSize = 70;
-      } else if (minDimension < 800) {
-        buttonSize = 80;
-      } else {
-        buttonSize = 90;
-      }
-      
-      this.captureButton.style.width = `${buttonSize}px`;
-      this.captureButton.style.height = `${buttonSize}px`;
-    };
-
-    // 初回調整
-    adjustButton();
-    
-    // リサイズ時の再調整
-    window.addEventListener('resize', adjustButton);
-    window.addEventListener('orientationchange', () => {
-      setTimeout(adjustButton, 100); // orientationchange後の遅延
-    });
   }
 
   async initCamera() {
@@ -316,6 +292,11 @@ class ImprovedPhotoFrame {
       if (now - lastClick < 300) return; // 300ms デバウンス
       lastClick = now;
       this.handleCapture();
+    });
+
+    // タッチイベントでより確実な反応を提供
+    this.captureButton.addEventListener('touchstart', (e) => {
+      e.preventDefault(); // デフォルトの動作を防ぐ
     });
 
     // ページ可視性の制御
