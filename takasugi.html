@@ -1,354 +1,331 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
-<title>AR Photo Capture (FullHD)</title>
-<style>
-  :root {
-    --button-height: 64px; /* 固定ボタン高さ（ピクセル指定でクロスブラウザで安定） */
-    --button-width: 220px;
-    --button-radius: 999px;
-    --button-bottom-gap: calc(env(safe-area-inset-bottom, 0px) + 12px); /* ノッチ対応 */
-  }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>ARフォト撮影</title>
+    <style>
+        /* 全体の初期設定と安全領域対応 */
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #000;
+        }
 
-  html,body {
-    height:100%;
-    margin:0;
-    background:#000;
-    -webkit-user-select:none;
-    -ms-user-select:none;
-    user-select:none;
-    touch-action: manipulation;
-    font-family:system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial;
-    color:#fff;
-  }
+        /* メインコンテナ：画面全体にフィット */
+        .ar-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
 
-  /* ビデオを含むラッパー。上下が見切れても良い仕様のため overflow:hidden */
-  .cam-wrap {
-    position:relative;
-    width:100vw;
-    height:100vh;
-    overflow:hidden;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    background:#000;
-  }
+        /* 映像要素：画面いっぱいに表示（上下切れてもOK） */
+        #video-feed {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            min-width: 100%;
+            min-height: 100%;
+            width: auto;
+            height: auto;
+            transform: translate(-50%, -50%);
+            object-fit: cover; /* 画面にフィット（はみ出しOK） */
+            display: none; /* 初期は非表示（読み込み完了後に表示） */
+        }
 
-  /* video要素は幅100vwに合わせ、高さは自動。これにより等倍表示（ズームなし）に近づける。 */
-  video#preview {
-    width:100vw;
-    height:auto; /* 高さは元解像度のアスペクト比に従う */
-    object-fit: none; /* ブラウザが拡大縮小して中身を見せるのを制御（ここはnoneで等倍に近づける） */
-    transform-origin:center center;
-    -webkit-transform-origin:center center;
-    /* iOS Safari で video を回転させる必要がある端末があるため transform の調整は後で行う（必要時） */
-  }
+        /* キャラクター画像コンテナ */
+        .overlay-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            pointer-events: none; /* 下の要素（カメラ映像）をクリックできるように */
+        }
 
-  /* PNGオーバーレイ。中央配置、縦横比維持。幅は画面幅に合わせる（仕様） */
-  img#overlay {
-    position:absolute;
-    left:50%;
-    top:50%;
-    transform:translate(-50%,-50%);
-    width:100vw; /* 画面幅を基準に */
-    height:auto;
-    pointer-events:none;
-    max-height:100vh; /* 画面全体をはみ出すのを抑制（縦長画像対応） */
-  }
+        /* キャラクター画像 */
+        #character-image {
+            max-width: 90vw; /* スマホ画面の幅を基準に合わせる（少し余白を持たせても良い） */
+            max-height: 90vh; /* 縦長画像対応のため高さも制限 */
+            width: auto;
+            height: auto;
+            object-fit: contain; /* 縦横比維持 */
+        }
 
-  /* 撮影ボタン（下部に固定）*/
-  .controls {
-    position:fixed;
-    left:50%;
-    transform:translateX(-50%);
-    bottom: var(--button-bottom-gap);
-    z-index: 40;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    pointer-events:auto;
-  }
+        /* UIコンテナ：画面下部に固定、安全領域対応 */
+        .ui-container {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            padding-bottom: constant(safe-area-inset-bottom); /* iOS対応 (旧形式) */
+            padding-bottom: env(safe-area-inset-bottom); /* iOS/Android対応 (推奨) */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+            padding-top: 20px;
+            background: linear-gradient(to top, rgba(0,0,0,0.7), rgba(0,0,0,0)); /* グラデーションで下部UIを見やすく */
+        }
 
-  button#shutter {
-    height: var(--button-height);
-    width: var(--button-width);
-    border-radius: var(--button-radius);
-    border: none;
-    background: linear-gradient(180deg, #ffffff 0%, #e6e6e6 100%);
-    color:#111;
-    font-weight:600;
-    font-size:16px;
-    box-shadow: 0 6px 18px rgba(0,0,0,0.35);
-    -webkit-appearance: none;
-    appearance: none;
-    display:inline-flex;
-    align-items:center;
-    justify-content:center;
-    touch-action: manipulation;
-  }
+        /* 撮影ボタン：クロスブラウザで一貫したサイズと位置 (vw単位で統一) */
+        #capture-button {
+            width: 15vw; /* 画面幅の15% */
+            height: 15vw; /* 画面幅の15% (正円維持のため) */
+            border-radius: 50%;
+            background-color: white;
+            border: 5px solid rgba(255, 255, 255, 0.5);
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+            transition: background-color 0.2s;
+            position: relative; /* 中央配置を維持 */
+        }
 
-  button#shutter:active {
-    transform: translateY(1px) scale(.998);
-  }
+        #capture-button:active {
+            background-color: #ddd;
+        }
 
-  /* エラーメッセージ / 状態表示 */
-  #msg {
-    position:fixed;
-    left:12px;
-    top:12px;
-    z-index:50;
-    background:rgba(0,0,0,0.4);
-    padding:8px 10px;
-    border-radius:8px;
-    font-size:14px;
-  }
+        /* ローディングインジケータ */
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 20;
+            font-size: 1.2em;
+        }
 
-  @media (orientation:landscape) {
-    /* ランドスケープ時でもボタン位置が同じに見えるよう調整する */
-    .controls { bottom: var(--button-bottom-gap); }
-  }
+        /* カメラ非対応/エラーメッセージ */
+        .error-message {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            padding: 20px;
+            background-color: rgba(255, 0, 0, 0.7);
+            border-radius: 8px;
+            z-index: 30;
+            text-align: center;
+            display: none;
+        }
 
-  /* ボタンの大きさを端末ごとにより一致させたい場合は高DPI対応で下記を調整可能 */
-</style>
+        /* Canvas要素は非表示 */
+        #capture-canvas {
+            display: none;
+        }
+    </style>
 </head>
 <body>
-  <div id="msg">カメラ起動中...</div>
 
-  <div class="cam-wrap" id="camWrap">
-    <video id="preview" autoplay playsinline muted></video>
-    <!-- オーバーレイ画像（同一フォルダに pf-takasugi2.png を置いてください） -->
-    <img id="overlay" src="pf-takasugi2.png" alt="overlay" />
-  </div>
+    <div class="ar-container">
+        <video id="video-feed" playsinline autoplay muted></video>
 
-  <div class="controls" aria-hidden="false">
-    <button id="shutter" type="button" aria-label="撮影">撮影</button>
-  </div>
+        <div class="overlay-container">
+            <img id="character-image" src="pf-takasugi2.png" alt="キャラクター" crossorigin="anonymous">
+        </div>
 
-<script>
-/*
-  動作の流れ（要点）
-  - getUserMedia({ video: { facingMode: { exact: "environment" } }}) で背面カメラを要求
-  - video要素の実際の解像度（videoWidth/videoHeight）を取得
-  - 1920x1080（FullHD, landscape）キャンバスを作成
-  - videoの中央領域を、target aspect (16:9) に合わせて切り出し -> canvasに描画
-  - overlay png をキャンバス中央に、画面幅を基準にしたスケールで重ねる
-  - canvas.toBlob でダウンロード（ファイル名は yyyy-mm-dd HH-MM-SS）
-  - 注意：ブラウザ/端末の向きや video の回転は完全に統一できない場合あり（多くの端末で動作する実装）
-*/
+        <div class="ui-container">
+            <button id="capture-button" aria-label="撮影"></button>
+        </div>
 
-(function(){
-  const video = document.getElementById('preview');
-  const overlay = document.getElementById('overlay');
-  const shutter = document.getElementById('shutter');
-  const msg = document.getElementById('msg');
+        <div id="loading-overlay" class="loading-overlay">カメラを起動中...</div>
 
-  let stream = null;
-  let overlayImg = new Image();
-  overlayImg.src = overlay.src;
-  overlayImg.onload = () => {
-    // nothing for now
-  };
+        <div id="error-message" class="error-message"></div>
 
-  // カメラ開始
-  async function startCamera() {
-    try {
-      // facingMode: environment をできるだけ尊重。exact が失敗する端末もあるため try/catchしてフォールバック。
-      const constraintsPref = {
-        audio: false,
-        video: {
-          facingMode: { exact: "environment" },
-          width: { ideal: 1920 },
-          height: { ideal: 1080 }
+        <canvas id="capture-canvas"></canvas>
+    </div>
+
+    <script>
+        const video = document.getElementById('video-feed');
+        const characterImage = document.getElementById('character-image');
+        const captureButton = document.getElementById('capture-button');
+        const canvas = document.getElementById('capture-canvas');
+        const loadingOverlay = document.getElementById('loading-overlay');
+        const errorMessage = document.getElementById('error-message');
+        const ctx = canvas.getContext('2d');
+
+        // 撮影画像の設定 (フルHD)
+        const CAPTURE_WIDTH = 1920;
+        const CAPTURE_HEIGHT = 1080;
+
+        /**
+         * 1. カメラ映像の開始
+         */
+        async function startCamera() {
+            try {
+                // 背面カメラを優先 (environment)
+                const constraints = {
+                    video: {
+                        facingMode: { exact: 'environment' }, // 背面カメラ指定
+                        width: { ideal: CAPTURE_WIDTH },
+                        height: { ideal: CAPTURE_HEIGHT }
+                    }
+                };
+
+                // カメラアクセス許可
+                const stream = await navigator.mediaDevices.getUserMedia(constraints);
+                video.srcObject = stream;
+
+                video.onloadedmetadata = () => {
+                    video.play();
+                    loadingOverlay.style.display = 'none';
+                    video.style.display = 'block';
+                    captureButton.disabled = false;
+                };
+
+            } catch (err) {
+                console.error("カメラへのアクセスでエラーが発生しました:", err);
+                loadingOverlay.style.display = 'none';
+                errorMessage.style.display = 'block';
+                errorMessage.textContent = 'カメラへのアクセスが許可されていません。設定を確認するか、対応ブラウザでアクセスしてください。エラー: ' + err.name;
+                captureButton.disabled = true;
+            }
         }
-      };
 
-      try {
-        stream = await navigator.mediaDevices.getUserMedia(constraintsPref);
-      } catch (e) {
-        // exactが通らない場合のフォールバック
-        const constraintsFallback = {
-          audio:false,
-          video: {
-            facingMode: "environment",
-            width: { ideal: 1280 },
-            height: { ideal: 720 }
-          }
+        /**
+         * 2. 撮影処理とダウンロード
+         */
+        captureButton.addEventListener('click', () => {
+            captureButton.disabled = true;
+            loadingOverlay.style.display = 'flex';
+            
+            // Canvasを撮影画像のフルHDサイズに設定
+            canvas.width = CAPTURE_WIDTH;
+            canvas.height = CAPTURE_HEIGHT;
+
+            // 撮影の実行
+            drawFrame();
+        });
+
+        /**
+         * 3. 画像合成ロジック (カメラ映像 + キャラクター画像)
+         */
+        function drawFrame() {
+            // カメラ映像の縦横比
+            const videoRatio = video.videoWidth / video.videoHeight;
+            // 撮影画像（Canvas）の縦横比 (1920/1080)
+            const captureRatio = CAPTURE_WIDTH / CAPTURE_HEIGHT;
+
+            let sx, sy, sWidth, sHeight; // カメラ映像からの切り出し位置とサイズ
+
+            // 6. 撮影画像は画面中央を基準に切り出し (フルHD: 1920x1080)
+            if (videoRatio > captureRatio) {
+                // カメラ映像の方が横長の場合 (左右が余る)
+                sHeight = video.videoHeight;
+                sWidth = video.videoHeight * captureRatio;
+                sx = (video.videoWidth - sWidth) / 2; // 左右を均等に切り捨て
+                sy = 0;
+            } else {
+                // カメラ映像の方が縦長の場合 (上下が余る)
+                sWidth = video.videoWidth;
+                sHeight = video.videoWidth / captureRatio;
+                sx = 0;
+                sy = (video.videoHeight - sHeight) / 2; // 上下を均等に切り捨て
+            }
+
+            // 映像をCanvasに描画 (中央を1920x1080で切り出し)
+            ctx.drawImage(video, sx, sy, sWidth, sHeight, 0, 0, CAPTURE_WIDTH, CAPTURE_HEIGHT);
+
+            // キャラクター画像をCanvas中央に描画
+            const charNaturalWidth = characterImage.naturalWidth;
+            const charNaturalHeight = characterImage.naturalHeight;
+            const charRatio = charNaturalWidth / charNaturalHeight;
+
+            // キャラクター画像の表示サイズを計算 (撮影画像の幅の約90%を最大サイズとして、縦横比を維持)
+            const MAX_CHAR_WIDTH_ON_CANVAS = CAPTURE_WIDTH * 0.9;
+            const MAX_CHAR_HEIGHT_ON_CANVAS = CAPTURE_HEIGHT * 0.9;
+            
+            let charDrawWidth, charDrawHeight;
+
+            // 縦横比を維持しつつ、最大サイズに収まるように調整
+            if (charNaturalWidth / charNaturalHeight > MAX_CHAR_WIDTH_ON_CANVAS / MAX_CHAR_HEIGHT_ON_CANVAS) {
+                // 画像が横長または幅が最大を超える場合、幅基準
+                charDrawWidth = MAX_CHAR_WIDTH_ON_CANVAS;
+                charDrawHeight = charDrawWidth / charRatio;
+            } else {
+                // 画像が縦長または高さが最大を超える場合、高さ基準
+                charDrawHeight = MAX_CHAR_HEIGHT_ON_CANVAS;
+                charDrawWidth = charDrawHeight * charRatio;
+            }
+
+            // Canvas中央に配置
+            const charX = (CAPTURE_WIDTH - charDrawWidth) / 2;
+            const charY = (CAPTURE_HEIGHT - charDrawHeight) / 2;
+
+            // 画像をCanvasに描画
+            ctx.drawImage(characterImage, charX, charY, charDrawWidth, charDrawHeight);
+
+            // ダウンロード
+            downloadImage();
+        }
+
+        /**
+         * 4. 画像のダウンロード
+         */
+        function downloadImage() {
+            canvas.toBlob((blob) => {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = generateFileName();
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                
+                loadingOverlay.style.display = 'none';
+                captureButton.disabled = false;
+            }, 'image/png'); // PNG形式で保存
+        }
+
+        /**
+         * 5. タイムスタンプ付きファイル名生成
+         */
+        function generateFileName() {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            const hour = String(now.getHours()).padStart(2, '0');
+            const minute = String(now.getMinutes()).padStart(2, '0');
+            const second = String(now.getSeconds()).padStart(2, '0');
+
+            // 形式: yyyy-mm-dd HH-MM-SS.png
+            return `${year}-${month}-${day} ${hour}-${minute}-${second}.png`;
+        }
+
+        // ページロード時にカメラを起動
+        window.onload = () => {
+            // キャラクター画像がまだロードされていない場合は待機
+            if (!characterImage.complete) {
+                characterImage.onload = startCamera;
+                characterImage.onerror = () => {
+                    console.error("キャラクター画像の読み込みに失敗しました。ファイル名を確認してください。");
+                    errorMessage.textContent = 'キャラクター画像 (pf-takasugi2.png) の読み込みに失敗しました。';
+                    errorMessage.style.display = 'block';
+                    loadingOverlay.style.display = 'none';
+                };
+            } else {
+                startCamera();
+            }
         };
-        stream = await navigator.mediaDevices.getUserMedia(constraintsFallback);
-      }
 
-      video.srcObject = stream;
-      video.setAttribute('playsinline', ''); // iOSでフルスクリーンにならないように
-      video.muted = true;
-      await video.play();
-
-      msg.textContent = 'カメラ準備OK';
-      // iOS Safari 等で video の向きが異なる機種があるため、メタデータ取得後に微調整する余地あり
-    } catch (err) {
-      console.error(err);
-      msg.textContent = 'カメラを起動できません: ' + (err && err.message ? err.message : err);
-      alert('カメラへのアクセスが許可されていないか、デバイスが対応していません。ブラウザの設定を確認してください。');
-    }
-  }
-
-  // utility: pad zero
-  function z(n, len=2){ return String(n).padStart(len,'0'); }
-
-  // timestamp ファイル名 'yyyy-mm-dd HH-MM-SS'
-  function filenameWithTimestamp() {
-    const d = new Date();
-    const name = `${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())} ${z(d.getHours())}-${z(d.getMinutes())}-${z(d.getSeconds())}.png`;
-    return name;
-  }
-
-  // 撮影処理
-  async function captureFullHD() {
-    if (!video || !video.videoWidth || !video.videoHeight) {
-      alert('カメラがまだ準備できていません。少し待ってからもう一度お試しください。');
-      return;
-    }
-
-    // target canvas size (FullHD landscape)
-    const targetW = 1920;
-    const targetH = 1080;
-    const targetRatio = targetW / targetH;
-
-    const vW = video.videoWidth;
-    const vH = video.videoHeight;
-    const videoRatio = vW / vH;
-
-    // 中央を基準に、targetRatio に合うソース（video上の切り出し領域）を計算
-    let sx, sy, sw, sh;
-    if (videoRatio > targetRatio) {
-      // videoが横長 => 高さ全体を使い、幅を切り出す
-      sh = vH;
-      sw = Math.round(vH * targetRatio);
-      sx = Math.round((vW - sw) / 2);
-      sy = 0;
-    } else {
-      // videoが縦長 or 等比 => 幅全体を使い、高さを切り出す
-      sw = vW;
-      sh = Math.round(vW / targetRatio);
-      sx = 0;
-      sy = Math.round((vH - sh) / 2);
-    }
-
-    // Canvasへ描画
-    const canvas = document.createElement('canvas');
-    canvas.width = targetW;
-    canvas.height = targetH;
-    const ctx = canvas.getContext('2d');
-
-    // 背景を黒でクリア
-    ctx.fillStyle = "#000";
-    ctx.fillRect(0,0,targetW,targetH);
-
-    // video -> canvas (中央切り出し -> 1920x1080に拡大/縮小)
-    try {
-      ctx.drawImage(video, sx, sy, sw, sh, 0, 0, targetW, targetH);
-    } catch (e) {
-      console.error('drawImage(video) failed', e);
-      alert('画像処理に失敗しました');
-      return;
-    }
-
-    // overlay を、"画面幅を基準にしたサイズ" で中央に描画する
-    // 画面幅 (display) に合わせて overlay の幅を決めているため
-    const displayW = window.innerWidth || document.documentElement.clientWidth;
-    // video element の CSS 表示幅（ビデオ表示に使われている幅）は普通 displayW
-    const videoDisplayWidth = displayW;
-    // canvasの幅 (1920) が video の切り出し幅 sw に対応している。
-    // よって overlay の canvas上の幅は： overlayCanvasW = 1920 * (overlayDisplayWidth / videoDisplayWidth)
-    // 今回 overlayDisplayWidth = videoDisplayWidth (仕様: overlay width = screen width)
-    const overlayDisplayWidth = displayW; // overlay CSS uses 100vw
-    const overlayCanvasW = Math.round(targetW * (overlayDisplayWidth / videoDisplayWidth));
-
-    // オーバーレイ画像の縦横比に合わせた高さ
-    let overlayW = overlayCanvasW;
-    let overlayH = Math.round(overlayW * (overlayImg.naturalHeight / overlayImg.naturalWidth || 1));
-
-    // もし overlay がキャンバスより大きすぎる時は縮小
-    if (overlayW > targetW) {
-      const ratio = targetW / overlayW;
-      overlayW = Math.round(overlayW * ratio);
-      overlayH = Math.round(overlayH * ratio);
-    }
-    if (overlayH > targetH) {
-      const ratio = targetH / overlayH;
-      overlayW = Math.round(overlayW * ratio);
-      overlayH = Math.round(overlayH * ratio);
-    }
-
-    // 中央に配置
-    const dx = Math.round((targetW - overlayW) / 2);
-    const dy = Math.round((targetH - overlayH) / 2);
-
-    ctx.drawImage(overlayImg, 0, 0, overlayImg.naturalWidth, overlayImg.naturalHeight, dx, dy, overlayW, overlayH);
-
-    // ダウンロード：toBlob -> link click
-    canvas.toBlob(function(blob){
-      if (!blob) { alert('画像作成に失敗しました'); return; }
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filenameWithTimestamp();
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 5000);
-    }, 'image/png', 0.95);
-  }
-
-  // shutter button handler
-  shutter.addEventListener('click', async function(){
-    shutter.disabled = true;
-    msg.textContent = '撮影中...';
-    try {
-      await captureFullHD();
-    } catch (e) {
-      console.error(e);
-      alert('撮影でエラーが発生しました');
-    } finally {
-      msg.textContent = 'カメラ準備OK';
-      shutter.disabled = false;
-    }
-  });
-
-  // 起動
-  startCamera();
-
-  // 画面回転やリサイズ時にメッセージを更新（必要ならレイアウト調整）
-  window.addEventListener('resize', function(){
-    // overlay は CSS で 100vw にしてあるため自動追従
-  });
-
-  // 画面タップでフォーカス試行（サポートするカメラで tap-to-focus）
-  document.getElementById('camWrap').addEventListener('touchstart', async (ev) => {
-    if (!stream) return;
-    // try to set focus if supported
-    const track = stream.getVideoTracks()[0];
-    const capabilities = track.getCapabilities && track.getCapabilities();
-    const settings = track.getSettings && track.getSettings();
-    // タップ位置ベースの focusPoint がサポートされるブラウザはまだ少ないが、試みる
-    if (capabilities && capabilities.focusMode && capabilities.focusMode.includes('single-shot')) {
-      try {
-        await track.applyConstraints({ advanced: [{ focusMode: 'single-shot' }] });
-      } catch (e) {
-        // ignore
-      }
-    }
-  }, { passive:true });
-
-  // ページ離脱時はストリームを停止
-  window.addEventListener('pagehide', () => {
-    if (stream) {
-      stream.getTracks().forEach(t => t.stop());
-    }
-  }, false);
-
-})();
-</script>
+    </script>
 </body>
 </html>
