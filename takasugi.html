@@ -14,35 +14,51 @@
     touch-action: manipulation;
   }
 
-  /* 元の表示方式を復元 */
+  /* コンテナで画像とボタンの相対位置を管理 */
+  #main-container {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 100vw;
+    height: 100vh;
+    max-width: 100%;
+    max-height: 100%;
+  }
+
+  /* ビデオとオーバーレイを相対位置で配置 */
   #video-feed, #character-overlay {
-    position: fixed; 
-    top: 0; 
-    left: 0; 
-    width: 100%; 
-    height: 100%; 
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
     object-fit: cover;
-    z-index: 1;
   }
 
   #character-overlay { 
-    z-index: 2; 
-    /* PNG透過保持 */
+    z-index: 2;
     background: transparent;
   }
 
+  /* ボタンコンテナを画像基準で配置 */
   #ui-container {
-    position: fixed;
-    top: calc(80dvh - 1vw); 
-    width: 100%;
-    display: flex;
-    justify-content: center;
+    position: absolute;
+    /* 画像の下部から一定の位置に配置（画像サイズ基準） */
+    bottom: 12%;
+    left: 50%;
+    transform: translateX(-50%);
     z-index: 3;
   }
 
   #capture-button {
-    width: 15vw;
-    height: 15vw;
+    /* ビューポートではなく、コンテナサイズ基準でサイズを決定 */
+    width: 80px;
+    height: 80px;
+    min-width: 60px;
+    min-height: 60px;
+    max-width: 100px;
+    max-height: 100px;
     padding: 0;
     font-size: 0;
     border-radius: 50%;
@@ -51,13 +67,48 @@
     color: transparent; 
     border: 4px double #808080;
     box-shadow: 0 6px 12px rgba(0,0,0,0.3);
-    transform: translateY(-50%); 
     transition: all 0.2s ease;
     user-select: none;
   }
 
   #capture-button:active {
-    transform: translateY(-50%) scale(0.95);
+    transform: scale(0.95);
+  }
+
+  /* レスポンシブ対応：小さい画面での調整 */
+  @media (max-width: 480px) {
+    #ui-container {
+      bottom: 10%;
+    }
+    
+    #capture-button {
+      width: 70px;
+      height: 70px;
+    }
+  }
+
+  /* 横画面対応 */
+  @media (orientation: landscape) {
+    #ui-container {
+      bottom: 8%;
+    }
+    
+    #capture-button {
+      width: 60px;
+      height: 60px;
+    }
+  }
+
+  /* 大きい画面での調整 */
+  @media (min-width: 1200px) {
+    #ui-container {
+      bottom: 15%;
+    }
+    
+    #capture-button {
+      width: 100px;
+      height: 100px;
+    }
   }
 
   /* 改善機能のスタイル */
@@ -110,14 +161,36 @@
     opacity: 0.7;
     pointer-events: none;
   }
+
+  /* デバッグ用：アンカーポイントを可視化したい場合 */
+  .debug-anchor {
+    position: absolute;
+    width: 4px;
+    height: 4px;
+    background: red;
+    z-index: 999;
+    display: none; /* 本番では非表示 */
+  }
+
+  .debug-anchor.bottom-center {
+    bottom: 12%;
+    left: 50%;
+    transform: translateX(-50%);
+  }
 </style>
 </head>
 
 <body>
-<video id="video-feed" autoplay playsinline muted></video>
-<img id="character-overlay" src="pf-takasugi2.png" alt="高杉晋作">
-<div id="ui-container">
-  <button id="capture-button" aria-label="写真を撮影"></button>
+<div id="main-container">
+  <video id="video-feed" autoplay playsinline muted></video>
+  <img id="character-overlay" src="pf-takasugi2.png" alt="高杉晋作">
+  
+  <!-- デバッグ用アンカーポイント（必要に応じて表示） -->
+  <div class="debug-anchor bottom-center"></div>
+  
+  <div id="ui-container">
+    <button id="capture-button" aria-label="写真を撮影"></button>
+  </div>
 </div>
 
 <!-- 改善機能の要素 -->
@@ -130,11 +203,12 @@
 
 /**
  * 改善されたPhotoFrameアプリ
- * 元の動作を保持しつつ、必要最小限の機能改善を実装
+ * ボタン位置固定版
  */
 class ImprovedPhotoFrame {
   constructor() {
     // DOM要素の取得
+    this.mainContainer = document.getElementById('main-container');
     this.video = document.getElementById('video-feed');
     this.overlay = document.getElementById('character-overlay');
     this.captureButton = document.getElementById('capture-button');
@@ -167,10 +241,43 @@ class ImprovedPhotoFrame {
       await this.initCamera();
       await this.waitForOverlay();
       this.setupEvents();
+      this.adjustLayout(); // レイアウト調整を追加
       console.log('App initialized successfully');
     } catch (error) {
       this.showError('初期化に失敗しました: ' + error.message);
     }
+  }
+
+  // 画面サイズに応じたレイアウト調整
+  adjustLayout() {
+    const adjustButton = () => {
+      const containerRect = this.mainContainer.getBoundingClientRect();
+      const minDimension = Math.min(containerRect.width, containerRect.height);
+      
+      // コンテナサイズに応じてボタンサイズを調整
+      let buttonSize;
+      if (minDimension < 400) {
+        buttonSize = 60;
+      } else if (minDimension < 600) {
+        buttonSize = 70;
+      } else if (minDimension < 800) {
+        buttonSize = 80;
+      } else {
+        buttonSize = 90;
+      }
+      
+      this.captureButton.style.width = `${buttonSize}px`;
+      this.captureButton.style.height = `${buttonSize}px`;
+    };
+
+    // 初回調整
+    adjustButton();
+    
+    // リサイズ時の再調整
+    window.addEventListener('resize', adjustButton);
+    window.addEventListener('orientationchange', () => {
+      setTimeout(adjustButton, 100); // orientationchange後の遅延
+    });
   }
 
   async initCamera() {
