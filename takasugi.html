@@ -18,11 +18,8 @@
 
   #ui-container {
     position:fixed;
-    /* --- 位置修正点: 画面下端からの割合で指定し、モバイルUIの変化に強くする --- */
-    /* top: 80%; (削除) */
-    bottom: 20%; /* 画面下端から20%上に配置 (top: 80%に相当する安定位置の例) */
-    /* transform: translateY(-50%); (bottom指定に切り替えたため削除。ただし必要に応じて再検討) */
-    /* ---------------------- */
+    /* top/bottom の値はJSで動的に設定するため、ここでは初期設定は不要 */
+    /* top: 80%; または bottom: 20%; は削除/コメントアウト */
     width:100%;
     display:flex;
     justify-content:center;
@@ -45,11 +42,13 @@
     display: flex;
     justify-content: center;
     align-items: center;
+    /* JSで位置を正確に中央に持ってくるため、自身の高さの半分だけ上にオフセット */
+    transform: translateY(-50%); 
   }
 
   /* ボタン内のアイコン/テキストのサイズ調整 */
   #capture-button::before {
-    content: "📸";
+    content: "Shot";
     font-size: 6vw; /* 15vw に収まるように調整 */
   }
 </style>
@@ -64,14 +63,53 @@
 const video = document.getElementById('video-feed');
 const overlay = document.getElementById('character-overlay');
 const captureButton = document.getElementById('capture-button');
+const uiContainer = document.getElementById('ui-container'); // ui-containerを取得
+
+/**
+ * オーバーレイ画像の下端にボタンの中央を合わせる
+ * - transform: translateY(-50%) がボタンに適用されているため、
+ * コンテナの上端をオーバーレイ画像の下端に設定することで、ボタンの中央が画像の下端に来る。
+ */
+function adjustButtonPosition() {
+    // getBoundingClientRect() で要素のビューポート内の正確な位置とサイズを取得
+    const overlayRect = overlay.getBoundingClientRect();
+    
+    // 画像の下端のY座標を取得 (これがボタンコンテナの top の基準となる)
+    const overlayBottom = overlayRect.bottom;
+    
+    // ui-container の top スタイルを動的に設定
+    // 画像の下端にコンテナの上端を合わせる
+    uiContainer.style.top = `${overlayBottom}px`;
+
+    // 補足: 
+    // ボタンのCSSに transform: translateY(-50%) が適用されているため、
+    // ボタンの「中心」が画像の下端 (overlayBottom) に位置します。
+    // もし、ボタンの「上端」を画像の下端に合わせたい場合は、 transform: translateY(-50%) を削除してください。
+}
+
 
 // 背面カメラ（高解像度を希望）
 navigator.mediaDevices.getUserMedia({
   video: { facingMode: "environment", width: { ideal: 2436 }, height: { ideal: 1125 } }
-}).then(stream => { video.srcObject = stream; })
-  .catch(err => alert("カメラアクセスエラー: " + err));
+}).then(stream => { 
+    video.srcObject = stream; 
+    
+    // 動画のロード完了とオーバーレイ画像の読み込み完了を待って位置を調整
+    // 画像の自然な読み込みを待つ
+    if (overlay.complete) {
+        adjustButtonPosition();
+    } else {
+        overlay.addEventListener('load', adjustButtonPosition);
+    }
+    
+}).catch(err => alert("カメラアクセスエラー: " + err));
 
-// 撮影処理（画面中央を基準にHD切り出し）
+// 画面サイズ変更時にも位置を調整（スマホの回転やツールバーの出し入れに対応）
+window.addEventListener('resize', adjustButtonPosition);
+window.addEventListener('orientationchange', adjustButtonPosition);
+
+
+// 撮影処理（変更なし）
 captureButton.addEventListener('click', () => {
   const HD_W = 1080;   // 切り出し幅
   const HD_H = 1920;   // 切り出し高さ
