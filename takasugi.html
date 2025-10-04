@@ -3,25 +3,31 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: blob:; media-src 'self' blob:;">
 <title>Sinsaku Takasugi Photo Frame</title>
 
 <style>
-  /* CSS変数で一元管理 */
   :root {
     --button-size: 15vw;
     --button-position: 80dvh;
     --button-color: #E0E0E0;
     --button-border-color: #808080;
+    --flash-duration: 200ms;
+    --progress-color: #4CAF50;
+  }
+
+  * {
+    box-sizing: border-box;
   }
 
   body { 
     margin: 0; 
     overflow: hidden; 
     background: #000;
-    touch-action: manipulation; /* タッチ遅延を削減 */
+    touch-action: manipulation;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   }
 
-  /* メディア要素の共通スタイル */
   #video-feed, #character-overlay {
     position: fixed; 
     top: 0; 
@@ -29,7 +35,8 @@
     width: 100%; 
     height: 100%; 
     object-fit: cover;
-    will-change: transform; /* GPU加速の最適化 */
+    will-change: transform;
+    aspect-ratio: 16 / 9; /* CLS対策 */
   }
 
   #video-feed { z-index: 1; }
@@ -55,34 +62,131 @@
     border: 4px double var(--button-border-color);
     box-shadow: 0 6px 12px rgba(0,0,0,0.3);
     transform: translateY(-50%);
-    transition: opacity 0.2s ease; /* スムーズなフィードバック */
+    transition: all 0.2s ease;
     user-select: none;
+    position: relative;
+    overflow: hidden;
   }
 
   #capture-button:active {
-    opacity: 0.7;
+    transform: translateY(-50%) scale(0.95);
   }
 
-  /* loading状態の表示 */
-  .loading {
-    opacity: 0.5;
+  .button-loading {
+    opacity: 0.7;
     pointer-events: none;
   }
 
-  /* エラーメッセージのスタイル */
+  .button-loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 20px;
+    height: 20px;
+    margin: -10px;
+    border: 2px solid #666;
+    border-top: 2px solid #fff;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
+
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+
+  /* プログレス表示 */
+  .progress-container {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0,0,0,0.8);
+    color: white;
+    padding: 10px 20px;
+    border-radius: 20px;
+    z-index: 5;
+    min-width: 200px;
+    text-align: center;
+  }
+
+  .progress-bar {
+    width: 100%;
+    height: 4px;
+    background: rgba(255,255,255,0.3);
+    border-radius: 2px;
+    margin-top: 8px;
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: var(--progress-color);
+    transition: width 0.3s ease;
+    border-radius: 2px;
+  }
+
+  /* フラッシュエフェクト */
+  .camera-flash {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: white;
+    z-index: 9999;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .flash-animation {
+    animation: flash var(--flash-duration) ease-out;
+  }
+
+  @keyframes flash {
+    0% { opacity: 0; }
+    50% { opacity: 0.8; }
+    100% { opacity: 0; }
+  }
+
+  /* エラーメッセージ */
   .error-message {
     position: fixed;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    background: rgba(255, 0, 0, 0.8);
+    background: rgba(244, 67, 54, 0.95);
     color: white;
     padding: 20px;
-    border-radius: 10px;
+    border-radius: 12px;
     z-index: 10;
     text-align: center;
-    font-family: Arial, sans-serif;
-    max-width: 80%;
+    max-width: 90%;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+  }
+
+  .error-message button {
+    margin-top: 15px;
+    padding: 8px 16px;
+    background: rgba(255,255,255,0.2);
+    border: 1px solid rgba(255,255,255,0.3);
+    color: white;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+
+  /* レスポンシブ対応 */
+  @media (max-width: 480px) {
+    :root {
+      --button-size: 18vw;
+    }
+  }
+
+  @media (orientation: landscape) {
+    :root {
+      --button-size: 12vh;
+    }
   }
 </style>
 </head>
@@ -91,251 +195,506 @@
 <video id="video-feed" autoplay playsinline muted></video>
 <img id="character-overlay" src="pf-takasugi2.png" alt="高杉晋作">
 <div id="ui-container">
-  <button id="capture-button" aria-label="写真を撮影"></button>
+  <button id="capture-button" aria-label="写真を撮影" type="button"></button>
 </div>
 
 <script>
 'use strict';
 
 /**
- * 写真フレームアプリケーションクラス
- * ARフレーム機能と撮影機能を提供
+ * 設定管理クラス
  */
-class PhotoFrameApp {
+class ConfigManager {
   constructor() {
-    // DOM要素の取得
-    this.video = document.getElementById('video-feed');
-    this.overlay = document.getElementById('character-overlay');
-    this.captureButton = document.getElementById('capture-button');
-    
-    // 撮影設定（定数として定義）
-    this.CAPTURE_CONFIG = {
-      width: 1080,
-      height: 1920,
-      quality: 0.95,
-      format: 'image/png'
-    };
-    
-    // カメラ設定
-    this.CAMERA_CONFIG = {
-      video: {
-        facingMode: 'environment',
-        width: { ideal: 2436 },
-        height: { ideal: 1125 }
+    this.config = new Map();
+    this.defaultConfig = {
+      capture: {
+        width: 1080,
+        height: 1920,
+        quality: 0.95,
+        format: 'image/png'
+      },
+      camera: {
+        video: {
+          facingMode: 'environment',
+          width: { ideal: 2436 },
+          height: { ideal: 1125 }
+        }
+      },
+      ui: {
+        debounceDelay: 300,
+        errorDisplayTime: 5000,
+        maxRetries: 3
       }
     };
     
-    // 状態管理
-    this.isCapturing = false;
-    this.stream = null;
-    
-    // 初期化
-    this.init();
+    this.loadDefaults();
   }
 
-  /**
-   * アプリケーションの初期化
-   */
-  async init() {
-    try {
-      await this.initializeCamera();
-      this.setupEventListeners();
-      await this.preloadOverlayImage();
-    } catch (error) {
-      this.handleError('アプリケーションの初期化に失敗しました', error);
-    }
-  }
-
-  /**
-   * カメラの初期化
-   */
-  async initializeCamera() {
-    try {
-      this.stream = await navigator.mediaDevices.getUserMedia(this.CAMERA_CONFIG);
-      this.video.srcObject = this.stream;
-      
-      // ビデオが準備完了するまで待機
-      await new Promise((resolve, reject) => {
-        this.video.addEventListener('loadedmetadata', resolve, { once: true });
-        this.video.addEventListener('error', reject, { once: true });
-        setTimeout(() => reject(new Error('Video loading timeout')), 10000);
-      });
-      
-    } catch (error) {
-      throw new Error(`カメラアクセスエラー: ${error.message}`);
-    }
-  }
-
-  /**
-   * オーバーレイ画像の事前読み込み
-   */
-  async preloadOverlayImage() {
-    return new Promise((resolve, reject) => {
-      if (this.overlay.complete) {
-        resolve();
-      } else {
-        this.overlay.addEventListener('load', resolve, { once: true });
-        this.overlay.addEventListener('error', reject, { once: true });
-        // タイムアウト設定
-        setTimeout(() => reject(new Error('Image loading timeout')), 5000);
-      }
+  loadDefaults() {
+    Object.entries(this.defaultConfig).forEach(([key, value]) => {
+      this.config.set(key, value);
     });
   }
 
-  /**
-   * イベントリスナーの設定
-   */
-  setupEventListeners() {
-    // 撮影ボタン（デバウンス処理付き）
-    this.captureButton.addEventListener('click', 
-      this.debounce(this.handleCapture.bind(this), 300)
-    );
-
-    // 画面向き変更対応（パフォーマンス最適化）
-    window.addEventListener('orientationchange', 
-      this.debounce(this.handleOrientationChange.bind(this), 100)
-    );
-
-    // ページの可視性変更対応
-    document.addEventListener('visibilitychange', this.handleVisibilityChange.bind(this));
+  get(key) {
+    return this.config.get(key);
   }
 
-  /**
-   * デバウンス関数（連続実行防止）
-   */
+  set(key, value) {
+    this.config.set(key, value);
+  }
+}
+
+/**
+ * メモリ管理クラス
+ */
+class MemoryManager {
+  constructor() {
+    this.resources = new WeakMap();
+    this.cleanupTasks = new Set();
+    this.canvasPool = [];
+    this.maxPoolSize = 3;
+  }
+
+  registerResource(obj, cleanup) {
+    this.resources.set(obj, cleanup);
+    this.cleanupTasks.add(cleanup);
+  }
+
+  getCanvas(width, height) {
+    const canvas = this.canvasPool.pop() || this.createOptimizedCanvas();
+    canvas.width = width;
+    canvas.height = height;
+    return canvas;
+  }
+
+  releaseCanvas(canvas) {
+    if (this.canvasPool.length < this.maxPoolSize) {
+      // Canvasをクリアして再利用可能な状態にする
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      this.canvasPool.push(canvas);
+    }
+  }
+
+  createOptimizedCanvas() {
+    if (typeof OffscreenCanvas !== 'undefined') {
+      return new OffscreenCanvas(1, 1);
+    }
+    const canvas = document.createElement('canvas');
+    canvas.style.display = 'none';
+    return canvas;
+  }
+
+  forceCleanup() {
+    this.cleanupTasks.forEach(task => {
+      try {
+        task();
+      } catch (error) {
+        console.warn('Cleanup task failed:', error);
+      }
+    });
+    this.cleanupTasks.clear();
+    
+    // Canvas poolのクリア
+    this.canvasPool.length = 0;
+    
+    // ガベージコレクションを促す（開発環境用）
+    if (window.gc && typeof window.gc === 'function') {
+      window.gc();
+    }
+  }
+}
+
+/**
+ * エラーハンドリングクラス
+ */
+class ErrorHandler {
+  static ERROR_TYPES = {
+    CAMERA_ACCESS: 'camera_access',
+    PERMISSION_DENIED: 'permission_denied',
+    NETWORK_ERROR: 'network_error',
+    RESOURCE_ERROR: 'resource_error',
+    CAPTURE_ERROR: 'capture_error'
+  };
+
+  constructor(config) {
+    this.config = config;
+    this.retryDelays = [1000, 2000, 4000]; // 指数バックオフ
+  }
+
+  async withRetry(operation, maxRetries = null) {
+    const attempts = maxRetries || this.config.get('ui').maxRetries;
+    
+    for (let attempt = 1; attempt <= attempts; attempt++) {
+      try {
+        return await operation();
+      } catch (error) {
+        if (attempt === attempts) {
+          throw this.enhanceError(error, attempt);
+        }
+        
+        const delay = this.retryDelays[attempt - 1] || 4000;
+        await this.delay(delay);
+      }
+    }
+  }
+
+  enhanceError(error, attempts) {
+    const enhancedError = new Error(error.message);
+    enhancedError.originalError = error;
+    enhancedError.attempts = attempts;
+    enhancedError.type = this.classifyError(error);
+    enhancedError.timestamp = new Date().toISOString();
+    return enhancedError;
+  }
+
+  classifyError(error) {
+    if (error.name === 'NotAllowedError') {
+      return ErrorHandler.ERROR_TYPES.PERMISSION_DENIED;
+    }
+    if (error.name === 'NotFoundError') {
+      return ErrorHandler.ERROR_TYPES.CAMERA_ACCESS;
+    }
+    if (error.message && error.message.includes('network')) {
+      return ErrorHandler.ERROR_TYPES.NETWORK_ERROR;
+    }
+    return ErrorHandler.ERROR_TYPES.RESOURCE_ERROR;
+  }
+
+  delay(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+}
+
+/**
+ * カメラ制御クラス
+ */
+class CameraController {
+  constructor(config, errorHandler, memoryManager) {
+    this.config = config;
+    this.errorHandler = errorHandler;
+    this.memoryManager = memoryManager;
+    this.stream = null;
+    this.isInitialized = false;
+  }
+
+  async initialize(video) {
+    if (this.isInitialized) return this.stream;
+
+    return this.errorHandler.withRetry(async () => {
+      this.stream = await navigator.mediaDevices.getUserMedia(
+        this.config.get('camera')
+      );
+      
+      video.srcObject = this.stream;
+      
+      await new Promise((resolve, reject) => {
+        video.addEventListener('loadedmetadata', resolve, { once: true });
+        video.addEventListener('error', reject, { once: true });
+        
+        const timeout = setTimeout(() => {
+          reject(new Error('Video loading timeout'));
+        }, 10000);
+        
+        video.addEventListener('loadedmetadata', () => {
+          clearTimeout(timeout);
+        }, { once: true });
+      });
+      
+      this.isInitialized = true;
+      this.memoryManager.registerResource(this.stream, () => this.cleanup());
+      
+      return this.stream;
+    });
+  }
+
+  pause() {
+    if (this.stream) {
+      this.stream.getVideoTracks().forEach(track => {
+        track.enabled = false;
+      });
+    }
+  }
+
+  resume() {
+    if (this.stream) {
+      this.stream.getVideoTracks().forEach(track => {
+        track.enabled = true;
+      });
+    }
+  }
+
+  cleanup() {
+    if (this.stream) {
+      this.stream.getTracks().forEach(track => track.stop());
+      this.stream = null;
+      this.isInitialized = false;
+    }
+  }
+}
+
+/**
+ * Canvas描画最適化クラス
+ */
+class CanvasRenderer {
+  constructor(config, memoryManager) {
+    this.config = config;
+    this.memoryManager = memoryManager;
+  }
+
+  async renderPhoto(video, overlay) {
+    const { width: HD_W, height: HD_H, quality, format } = this.config.get('capture');
+    
+    const canvas = this.memoryManager.getCanvas(HD_W, HD_H);
+    const ctx = canvas.getContext('2d', { 
+      alpha: false,
+      willReadFrequently: false 
+    });
+
+    try {
+      // 背景（ビデオ）の描画
+      this.drawVideoToCanvas(ctx, video, HD_W, HD_H);
+      
+      // オーバーレイの描画
+      this.drawOverlayToCanvas(ctx, overlay, HD_W, HD_H);
+
+      // Blobとして返す
+      const blob = await this.canvasToBlob(canvas, format, quality);
+      
+      return blob;
+    } finally {
+      // Canvasをプールに戻す
+      this.memoryManager.releaseCanvas(canvas);
+    }
+  }
+
+  drawVideoToCanvas(ctx, video, canvasWidth, canvasHeight) {
+    const cropData = this.calculateCropData(
+      video.videoWidth, 
+      video.videoHeight, 
+      canvasWidth, 
+      canvasHeight
+    );
+
+    ctx.drawImage(
+      video,
+      cropData.srcX, cropData.srcY, cropData.srcW, cropData.srcH,
+      0, 0, canvasWidth, canvasHeight
+    );
+  }
+
+  drawOverlayToCanvas(ctx, overlay, canvasWidth, canvasHeight) {
+    const cropData = this.calculateCropData(
+      overlay.naturalWidth, 
+      overlay.naturalHeight, 
+      canvasWidth, 
+      canvasHeight
+    );
+
+    ctx.drawImage(
+      overlay,
+      cropData.srcX, cropData.srcY, cropData.srcW, cropData.srcH,
+      0, 0, canvasWidth, canvasHeight
+    );
+  }
+
+  calculateCropData(sourceWidth, sourceHeight, targetWidth, targetHeight) {
+    const sourceRatio = sourceWidth / sourceHeight;
+    const targetRatio = targetWidth / targetHeight;
+
+    let srcW, srcH, srcX, srcY;
+    
+    if (sourceRatio > targetRatio) {
+      srcH = sourceHeight;
+      srcW = srcH * targetRatio;
+      srcX = (sourceWidth - srcW) / 2;
+      srcY = 0;
+    } else {
+      srcW = sourceWidth;
+      srcH = srcW / targetRatio;
+      srcX = 0;
+      srcY = (sourceHeight - srcH) / 2;
+    }
+
+    return { srcX, srcY, srcW, srcH };
+  }
+
+  async canvasToBlob(canvas, format, quality) {
+    if (canvas.convertToBlob) {
+      return await canvas.convertToBlob({ type: format, quality });
+    }
+    
+    return new Promise((resolve, reject) => {
+      canvas.toBlob((blob) => {
+        if (blob) {
+          resolve(blob);
+        } else {
+          reject(new Error('Failed to create blob'));
+        }
+      }, format, quality);
+    });
+  }
+}
+
+/**
+ * UI制御クラス
+ */
+class UIController {
+  constructor(config, errorHandler) {
+    this.config = config;
+    this.errorHandler = errorHandler;
+    this.progressContainer = null;
+  }
+
+  showProgress(message, progress = 0) {
+    if (!this.progressContainer) {
+      this.progressContainer = this.createProgressContainer();
+      document.body.appendChild(this.progressContainer);
+    }
+
+    const messageEl = this.progressContainer.querySelector('.progress-message');
+    const fillEl = this.progressContainer.querySelector('.progress-fill');
+    
+    messageEl.textContent = message;
+    fillEl.style.width = `${progress}%`;
+  }
+
+  updateProgress(progress) {
+    if (this.progressContainer) {
+      const fillEl = this.progressContainer.querySelector('.progress-fill');
+      fillEl.style.width = `${progress}%`;
+    }
+  }
+
+  hideProgress() {
+    if (this.progressContainer) {
+      this.progressContainer.remove();
+      this.progressContainer = null;
+    }
+  }
+
+  createProgressContainer() {
+    const container = document.createElement('div');
+    container.className = 'progress-container';
+    container.innerHTML = `
+      <div class="progress-message">処理中...</div>
+      <div class="progress-bar">
+        <div class="progress-fill"></div>
+      </div>
+    `;
+    return container;
+  }
+
+  async showCaptureAnimation() {
+    const flash = document.createElement('div');
+    flash.className = 'camera-flash';
+    document.body.appendChild(flash);
+    
+    // フラッシュアニメーションの実行
+    requestAnimationFrame(() => {
+      flash.classList.add('flash-animation');
+    });
+
+    // ハプティックフィードバック
+    await this.triggerHapticFeedback();
+    
+    // アニメーション終了後に要素を削除
+    setTimeout(() => {
+      if (flash.parentElement) {
+        flash.remove();
+      }
+    }, 200);
+  }
+
+  async triggerHapticFeedback() {
+    if ('vibrate' in navigator) {
+      try {
+        navigator.vibrate([50]);
+      } catch (error) {
+        console.warn('Haptic feedback failed:', error);
+      }
+    }
+  }
+
+  showError(message, error) {
+    console.error(message, error);
+    
+    const errorDiv = document.createElement('div');
+    errorDiv.className = 'error-message';
+    
+    const errorType = error.type || 'unknown';
+    const userMessage = this.getUserFriendlyMessage(errorType, message);
+    
+    errorDiv.innerHTML = `
+      <h3>エラーが発生しました</h3>
+      <p>${userMessage}</p>
+      <button onclick="this.parentElement.remove()" type="button">閉じる</button>
+    `;
+    
+    document.body.appendChild(errorDiv);
+    
+    // 自動削除
+    setTimeout(() => {
+      if (errorDiv.parentElement) {
+        errorDiv.remove();
+      }
+    }, this.config.get('ui').errorDisplayTime);
+  }
+
+  getUserFriendlyMessage(errorType, originalMessage) {
+    const messages = {
+      'permission_denied': 'カメラの使用が許可されていません。ブラウザの設定を確認してください。',
+      'camera_access': 'カメラにアクセスできません。他のアプリでカメラが使用されていないか確認してください。',
+      'network_error': 'ネットワークエラーが発生しました。接続を確認してください。',
+      'capture_error': '撮影に失敗しました。もう一度お試しください。',
+      'resource_error': 'リソースの読み込みに失敗しました。',
+      'unknown': originalMessage
+    };
+    
+    return messages[errorType] || originalMessage;
+  }
+
   debounce(func, wait) {
     let timeout;
     return function executedFunction(...args) {
       const later = () => {
         clearTimeout(timeout);
-        func(...args);
+        func.apply(this, args);
       };
       clearTimeout(timeout);
       timeout = setTimeout(later, wait);
     };
   }
+}
 
-  /**
-   * 撮影処理のメインハンドラ
-   */
-  async handleCapture() {
-    if (this.isCapturing) return;
-    
-    try {
-      this.isCapturing = true;
-      this.captureButton.classList.add('loading');
-      
-      const imageBlob = await this.capturePhoto();
-      this.downloadImage(imageBlob);
-      
-    } catch (error) {
-      this.handleError('撮影に失敗しました', error);
-    } finally {
-      this.isCapturing = false;
-      this.captureButton.classList.remove('loading');
-    }
+/**
+ * ファイル操作クラス
+ */
+class FileManager {
+  constructor(config) {
+    this.config = config;
   }
 
-  /**
-   * 写真撮影処理（最適化済み）
-   */
-  async capturePhoto() {
-    const { width: HD_W, height: HD_H } = this.CAPTURE_CONFIG;
-    
-    // OffscreenCanvasを使用（利用可能な場合）
-    const canvas = typeof OffscreenCanvas !== 'undefined' 
-      ? new OffscreenCanvas(HD_W, HD_H)
-      : document.createElement('canvas');
-    
-    if (canvas instanceof HTMLCanvasElement) {
-      canvas.width = HD_W;
-      canvas.height = HD_H;
-    }
-    
-    const ctx = canvas.getContext('2d', { 
-      alpha: false,  // 透明度不要でパフォーマンス向上
-      willReadFrequently: false 
-    });
-
-    // 背景（ビデオ）の描画
-    this.drawVideoToCanvas(ctx, HD_W, HD_H);
-    
-    // オーバーレイの描画
-    this.drawOverlayToCanvas(ctx, HD_W, HD_H);
-
-    // Blobとして返す（メモリ効率向上）
-    if (canvas.convertToBlob) {
-      return await canvas.convertToBlob({ 
-        type: this.CAPTURE_CONFIG.format,
-        quality: this.CAPTURE_CONFIG.quality 
-      });
-    } else {
-      return new Promise(resolve => {
-        canvas.toBlob(resolve, this.CAPTURE_CONFIG.format, this.CAPTURE_CONFIG.quality);
-      });
-    }
+  sanitizeFileName(filename) {
+    return filename.replace(/[^a-zA-Z0-9_-]/g, '_');
   }
 
-  /**
-   * ビデオをキャンバスに描画（中央クロップ）
-   */
-  drawVideoToCanvas(ctx, canvasWidth, canvasHeight) {
-    const videoRatio = this.video.videoWidth / this.video.videoHeight;
-    const canvasRatio = canvasWidth / canvasHeight;
-
-    let srcW, srcH, srcX, srcY;
-    
-    if (videoRatio > canvasRatio) {
-      srcH = this.video.videoHeight;
-      srcW = srcH * canvasRatio;
-      srcX = (this.video.videoWidth - srcW) / 2;
-      srcY = 0;
-    } else {
-      srcW = this.video.videoWidth;
-      srcH = srcW / canvasRatio;
-      srcX = 0;
-      srcY = (this.video.videoHeight - srcH) / 2;
-    }
-
-    ctx.drawImage(this.video, srcX, srcY, srcW, srcH, 0, 0, canvasWidth, canvasHeight);
-  }
-
-  /**
-   * オーバーレイをキャンバスに描画（中央クロップ）
-   */
-  drawOverlayToCanvas(ctx, canvasWidth, canvasHeight) {
-    const imgRatio = this.overlay.naturalWidth / this.overlay.naturalHeight;
-    const canvasRatio = canvasWidth / canvasHeight;
-
-    let imgW, imgH, imgX, imgY;
-    
-    if (imgRatio > canvasRatio) {
-      imgH = this.overlay.naturalHeight;
-      imgW = imgH * canvasRatio;
-      imgX = (this.overlay.naturalWidth - imgW) / 2;
-      imgY = 0;
-    } else {
-      imgW = this.overlay.naturalWidth;
-      imgH = imgW / canvasRatio;
-      imgX = 0;
-      imgY = (this.overlay.naturalHeight - imgH) / 2;
-    }
-
-    ctx.drawImage(this.overlay, imgX, imgY, imgW, imgH, 0, 0, canvasWidth, canvasHeight);
-  }
-
-  /**
-   * 画像のダウンロード処理
-   */
-  downloadImage(blob) {
-    const timestamp = new Date().toISOString()
+  generateTimestamp() {
+    return new Date().toISOString()
       .replace(/[-:T]/g, '')
       .slice(0, 14);
+  }
+
+  downloadBlob(blob, baseFilename = 'matsudaya_photo') {
+    const timestamp = this.generateTimestamp();
+    const filename = this.sanitizeFileName(`${baseFilename}_${timestamp}.png`);
     
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     
-    link.download = `matsudaya_photo_${timestamp}.png`;
+    link.download = filename;
     link.href = url;
     link.style.display = 'none';
     
@@ -344,65 +703,281 @@ class PhotoFrameApp {
     document.body.removeChild(link);
     
     // メモリリーク防止
-    setTimeout(() => URL.revokeObjectURL(url), 100);
-  }
-
-  /**
-   * 画面向き変更時の処理
-   */
-  handleOrientationChange() {
-    // 必要に応じてUIの再調整
-    console.log('Orientation changed');
-  }
-
-  /**
-   * ページ可視性変更時の処理
-   */
-  handleVisibilityChange() {
-    if (document.hidden && this.stream) {
-      // バックグラウンド時はカメラを一時停止してリソースを節約
-      const tracks = this.stream.getVideoTracks();
-      tracks.forEach(track => track.enabled = false);
-    } else if (!document.hidden && this.stream) {
-      // フォアグラウンド復帰時はカメラを再開
-      const tracks = this.stream.getVideoTracks();
-      tracks.forEach(track => track.enabled = true);
-    }
-  }
-
-  /**
-   * エラーハンドリング
-   */
-  handleError(message, error) {
-    console.error(message, error);
-    
-    // エラーメッセージの表示
-    const errorDiv = document.createElement('div');
-    errorDiv.className = 'error-message';
-    errorDiv.innerHTML = `
-      <h3>エラーが発生しました</h3>
-      <p>${message}</p>
-      <button onclick="this.parentElement.remove()" style="margin-top:10px; padding:5px 10px;">閉じる</button>
-    `;
-    
-    document.body.appendChild(errorDiv);
-    
-    // 5秒後に自動的に削除
     setTimeout(() => {
-      if (errorDiv.parentElement) {
-        errorDiv.remove();
-      }
-    }, 5000);
+      URL.revokeObjectURL(url);
+    }, 100);
+  }
+}
+
+/**
+ * パフォーマンス監視クラス
+ */
+class PerformanceMonitor {
+  constructor() {
+    this.metrics = new Map();
+    this.setupObserver();
   }
 
-  /**
-   * リソースのクリーンアップ
-   */
-  cleanup() {
-    if (this.stream) {
-      this.stream.getTracks().forEach(track => track.stop());
-      this.stream = null;
+  setupObserver() {
+    if ('PerformanceObserver' in window) {
+      const observer = new PerformanceObserver((list) => {
+        list.getEntries().forEach((entry) => {
+          if (entry.name.startsWith('photo-frame-')) {
+            this.metrics.set(entry.name, entry.duration);
+          }
+        });
+      });
+      
+      observer.observe({ entryTypes: ['measure'] });
     }
+  }
+
+  startMeasure(name) {
+    performance.mark(`${name}-start`);
+  }
+
+  endMeasure(name) {
+    const startMark = `${name}-start`;
+    const endMark = `${name}-end`;
+    const measureName = `photo-frame-${name}`;
+    
+    performance.mark(endMark);
+    performance.measure(measureName, startMark, endMark);
+    
+    return this.metrics.get(measureName);
+  }
+
+  getMetrics() {
+    return new Map(this.metrics);
+  }
+}
+
+/**
+ * メインアプリケーションクラス
+ */
+class PhotoFrameApp {
+  constructor() {
+    // 依存性の初期化
+    this.config = new ConfigManager();
+    this.memoryManager = new MemoryManager();
+    this.errorHandler = new ErrorHandler(this.config);
+    this.performanceMonitor = new PerformanceMonitor();
+    
+    // コントローラーの初期化
+    this.camera = new CameraController(this.config, this.errorHandler, this.memoryManager);
+    this.renderer = new CanvasRenderer(this.config, this.memoryManager);
+    this.ui = new UIController(this.config, this.errorHandler);
+    this.fileManager = new FileManager(this.config);
+    
+    // DOM要素の取得
+    this.video = document.getElementById('video-feed');
+    this.overlay = document.getElementById('character-overlay');
+    this.captureButton = document.getElementById('capture-button');
+    
+    // 状態管理
+    this.isCapturing = false;
+    this.isInitialized = false;
+    
+    // 初期化
+    this.initialize();
+  }
+
+  async initialize() {
+    try {
+      this.performanceMonitor.startMeasure('initialization');
+      
+      await this.preloadResources();
+      await this.initializeCamera();
+      this.setupEventListeners();
+      
+      this.isInitialized = true;
+      
+      const initTime = this.performanceMonitor.endMeasure('initialization');
+      console.log(`App initialized in ${initTime}ms`);
+      
+    } catch (error) {
+      this.ui.showError('アプリケーションの初期化に失敗しました', error);
+    }
+  }
+
+  async preloadResources() {
+    const promises = [
+      this.preloadOverlayImage(),
+      this.warmupCanvas()
+    ];
+    
+    const results = await Promise.allSettled(promises);
+    
+    // 失敗したリソースをログ出力
+    results.forEach((result, index) => {
+      if (result.status === 'rejected') {
+        console.warn(`Resource ${index} failed to preload:`, result.reason);
+      }
+    });
+  }
+
+  async preloadOverlayImage() {
+    return new Promise((resolve, reject) => {
+      if (this.overlay.complete && this.overlay.naturalWidth > 0) {
+        resolve();
+        return;
+      }
+
+      const timeout = setTimeout(() => {
+        reject(new Error('Image loading timeout'));
+      }, 5000);
+
+      this.overlay.addEventListener('load', () => {
+        clearTimeout(timeout);
+        resolve();
+      }, { once: true });
+
+      this.overlay.addEventListener('error', (error) => {
+        clearTimeout(timeout);
+        reject(error);
+      }, { once: true });
+    });
+  }
+
+  async warmupCanvas() {
+    // Canvas機能のウォームアップ
+    const canvas = this.memoryManager.getCanvas(100, 100);
+    const ctx = canvas.getContext('2d');
+    ctx.fillRect(0, 0, 1, 1);
+    this.memoryManager.releaseCanvas(canvas);
+  }
+
+  async initializeCamera() {
+    await this.camera.initialize(this.video);
+  }
+
+  setupEventListeners() {
+    const debounceDelay = this.config.get('ui').debounceDelay;
+    
+    // 撮影ボタン
+    this.captureButton.addEventListener('click', 
+      this.ui.debounce(this.handleCapture.bind(this), debounceDelay)
+    );
+
+    // 画面向き変更
+    window.addEventListener('orientationchange', 
+      this.ui.debounce(this.handleOrientationChange.bind(this), 100)
+    );
+
+    // ページ可視性変更
+    document.addEventListener('visibilitychange', 
+      this.handleVisibilityChange.bind(this)
+    );
+
+    // メモリ圧迫時の対応
+    window.addEventListener('beforeunload', this.cleanup.bind(this));
+    
+    // メモリ警告の監視（対応ブラウザのみ）
+    if ('memory' in performance) {
+      this.monitorMemory();
+    }
+  }
+
+  async handleCapture() {
+    if (this.isCapturing || !this.isInitialized) return;
+    
+    try {
+      this.isCapturing = true;
+      this.captureButton.classList.add('button-loading');
+      
+      this.performanceMonitor.startMeasure('capture');
+      
+      // プログレス表示
+      this.ui.showProgress('撮影準備中...', 10);
+      
+      // フラッシュアニメーション
+      await this.ui.showCaptureAnimation();
+      
+      this.ui.updateProgress(30);
+      this.ui.showProgress('画像を処理中...', 30);
+      
+      // 撮影処理
+      const imageBlob = await this.renderer.renderPhoto(this.video, this.overlay);
+      
+      this.ui.updateProgress(80);
+      this.ui.showProgress('ダウンロード準備中...', 80);
+      
+      // ダウンロード
+      this.fileManager.downloadBlob(imageBlob);
+      
+      this.ui.updateProgress(100);
+      
+      const captureTime = this.performanceMonitor.endMeasure('capture');
+      console.log(`Capture completed in ${captureTime}ms`);
+      
+      // 成功フィードバック
+      setTimeout(() => this.ui.hideProgress(), 500);
+      
+    } catch (error) {
+      this.ui.hideProgress();
+      this.ui.showError('撮影に失敗しました', error);
+    } finally {
+      this.isCapturing = false;
+      this.captureButton.classList.remove('button-loading');
+    }
+  }
+
+  handleOrientationChange() {
+    // 画面向き変更後のレイアウト調整
+    setTimeout(() => {
+      if (this.video.videoWidth && this.video.videoHeight) {
+        // 必要に応じてビデオ表示の調整
+        console.log('Orientation changed, layout adjusted');
+      }
+    }, 100);
+  }
+
+  handleVisibilityChange() {
+    if (document.hidden) {
+      this.camera.pause();
+    } else if (this.isInitialized) {
+      this.camera.resume();
+    }
+  }
+
+  monitorMemory() {
+    setInterval(() => {
+      if (performance.memory) {
+        const memInfo = performance.memory;
+        const usageRatio = memInfo.usedJSHeapSize / memInfo.jsHeapSizeLimit;
+        
+        // メモリ使用率が80%を超えたら強制クリーンアップ
+        if (usageRatio > 0.8) {
+          console.warn('High memory usage detected, forcing cleanup');
+          this.memoryManager.forceCleanup();
+        }
+      }
+    }, 30000); // 30秒ごとにチェック
+  }
+
+  cleanup() {
+    console.log('Cleaning up resources...');
+    
+    this.camera.cleanup();
+    this.memoryManager.forceCleanup();
+    this.ui.hideProgress();
+    
+    // パフォーマンスメトリクスの出力
+    const metrics = this.performanceMonitor.getMetrics();
+    if (metrics.size > 0) {
+      console.log('Performance metrics:', Object.fromEntries(metrics));
+    }
+  }
+
+  // デバッグ用メソッド
+  getDebugInfo() {
+    return {
+      isInitialized: this.isInitialized,
+      isCapturing: this.isCapturing,
+      cameraActive: this.camera.stream !== null,
+      memoryMetrics: performance.memory || 'Not available',
+      performanceMetrics: Object.fromEntries(this.performanceMonitor.getMetrics())
+    };
   }
 }
 
@@ -412,12 +987,27 @@ document.addEventListener('DOMContentLoaded', () => {
   app = new PhotoFrameApp();
 });
 
-// ページ離脱時のクリーンアップ
-window.addEventListener('beforeunload', () => {
-  if (app) {
-    app.cleanup();
+// グローバルエラーハンドラー
+window.addEventListener('error', (event) => {
+  console.error('Global error:', event.error);
+  if (app && app.ui) {
+    app.ui.showError('予期しないエラーが発生しました', event.error);
   }
 });
+
+window.addEventListener('unhandledrejection', (event) => {
+  console.error('Unhandled promise rejection:', event.reason);
+  if (app && app.ui) {
+    app.ui.showError('非同期処理でエラーが発生しました', event.reason);
+  }
+});
+
+// デバッグ用（開発時のみ）
+if (typeof window !== 'undefined') {
+  window.photoFrameDebug = () => {
+    return app ? app.getDebugInfo() : 'App not initialized';
+  };
+}
 
 </script>
 </body>
