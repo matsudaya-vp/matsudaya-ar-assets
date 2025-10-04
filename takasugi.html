@@ -20,7 +20,6 @@
     position:fixed;
     /* 位置修正：ボタン全体を微調整で上に移動 */
     top: calc(80dvh - 1vw); 
-    /* top: 80dvh; だったところに、1vw（ボタンの幅の約1/15）分上にずらす calc を適用 */
     width:100%;
     display:flex;
     justify-content:center;
@@ -37,8 +36,8 @@
     cursor:pointer;
     background: #E0E0E0; /* 薄い灰色 */
     color: transparent; 
-    /* --- デザインの変更点 --- */
-    border: 4px double #333333; /* 濃いグレーの二重線に、太さ4pxで線間の幅を広げる */
+    /* --- デザインの変更点：二重線の色を #808080 に変更 --- */
+    border: 4px double #808080; /* グレーの二重線に、太さ4px */
     /* ---------------------- */
     box-shadow:0 6px 12px rgba(0,0,0,0.3);
     /* ボタンの中心をtop: Xの位置に正確に持ってくる */
@@ -58,7 +57,6 @@ const overlay = document.getElementById('character-overlay');
 const captureButton = document.getElementById('capture-button');
 
 function adjustButtonPosition() {
-    // CSS (dvh) で位置を調整しているため、ここでは特別な処理は不要です。
     console.log("Button position is controlled by CSS (dvh).");
 }
 
