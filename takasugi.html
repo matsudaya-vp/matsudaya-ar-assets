@@ -18,10 +18,7 @@
 
   #ui-container {
     position:fixed;
-    /* --- 位置修正点: dvhを使用し、画面上から80%にボタンの中心を固定 --- */
     top: 80dvh; /* Dynamic Viewport Height の80%に設定 */
-    /* JSによるtop設定は削除し、CSSで固定値に戻す */
-    /* ---------------------- */
     width:100%;
     display:flex;
     justify-content:center;
@@ -33,70 +30,54 @@
     width: 15vw;
     height: 15vw; /* 幅と同じにして正円にする */
     padding: 0;
-    font-size: 0;
+    font-size: 0; /* テキスト（「撮影」）と📷マークを非表示に */
     border-radius: 50%; /* 正円にする */
     cursor:pointer;
-    background: #FF0000; /* 背景を赤に */
-    color: #fff; /* アイコン/テキストの色を白に変更し、視認性を向上 */
-    border: 3px solid #CC0000; /* 枠線を濃い赤に */
+    /* --- デザインの変更点 --- */
+    background: #E0E0E0; /* 薄い灰色に */
+    color: transparent; /* アイコン/テキストの色は透明に（::beforeを使うため） */
+    border: 3px double #000000; /* 黒色の二重線に (border-style: double) */
+    /* ---------------------- */
     box-shadow:0 6px 12px rgba(0,0,0,0.3);
-    /* アイコンを中央に配置するための調整 */
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    /* ボタンの中心をtop: 80dvhの位置に正確に持ってくる */
-    transform: translateY(-50%); 
+    /* アイコンを中央に配置するための調整は不要になる（::beforeを削除するため） */
+    /* display: flex; justify-content: center; align-items: center; も不要ですが、残しておいても問題ありません */
   }
 
   /* ボタン内のアイコン/テキストのサイズ調整 */
-  #capture-button::before {
+  /* --- 📷マークを非表示にするため、このルールを削除またはコメントアウト --- */
+  /* #capture-button::before {
     content: "📸";
-    font-size: 6vw; /* 15vw に収まるように調整 */
-  }
+    font-size: 6vw;
+  } */
 </style>
 </head>
 
 <body>
 <video id="video-feed" autoplay playsinline></video>
 <img id="character-overlay" src="pf-takasugi2.png" alt="高杉晋作">
-<div id="ui-container"><button id="capture-button">📸 撮影</button></div>
-
-<script>
+<div id="ui-container"><button id="capture-button"></button></div> <script>
 const video = document.getElementById('video-feed');
 const overlay = document.getElementById('character-overlay');
 const captureButton = document.getElementById('capture-button');
-// const uiContainer = document.getElementById('ui-container'); // JSで位置調整しないため不要
 
-/**
- * 画面サイズ変更時に特に何もする必要がないように
- * CSSのdvhで対応するため、この関数は最小化します。
- */
 function adjustButtonPosition() {
-    // 現在はCSS (dvh) で位置を調整しているため、ここでは特別な処理は不要です。
-    // 将来的に他の要素の位置を調整したい場合に備えて関数は残しておきます。
     console.log("Button position is controlled by CSS (dvh).");
 }
-
 
 // 背面カメラ（高解像度を希望）
 navigator.mediaDevices.getUserMedia({
   video: { facingMode: "environment", width: { ideal: 2436 }, height: { ideal: 1125 } }
 }).then(stream => { 
     video.srcObject = stream; 
-    
-    // オーバーレイ画像のロードを待つ処理は不要ですが、念のため残しておきます。
     if (overlay.complete) {
         adjustButtonPosition();
     } else {
         overlay.addEventListener('load', adjustButtonPosition);
     }
-    
 }).catch(err => alert("カメラアクセスエラー: " + err));
 
-// 画面サイズ変更時にも位置を調整（dvh対応のブラウザではCSSが自動調整するため、必須ではありませんが念のため残します）
 window.addEventListener('resize', adjustButtonPosition);
 window.addEventListener('orientationchange', adjustButtonPosition);
-
 
 // 撮影処理（変更なし）
 captureButton.addEventListener('click', () => {
