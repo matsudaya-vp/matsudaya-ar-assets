@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Sinsaku Takasugi Photo Frame2</title>
+<title>Sinsaku Takasugi Photo Frame</title>
 
 <style>
   body { margin:0; overflow:hidden; background:#000; }
@@ -18,10 +18,7 @@
 
   #ui-container {
     position:fixed;
-    /* --- 位置修正点 --- */
     top: 80%; /* 画面上端から80%の位置に配置 */
-    /* bottom:280px;              /* (コメントアウトまたは削除) */
-    /* 画面中央に配置するため、left/rightは不要（width:100% と justify-content:center; の組み合わせで中央配置される） */
     width:100%;
     display:flex;
     justify-content:center;
@@ -36,9 +33,10 @@
     font-size: 0;
     border-radius: 50%; /* 正円にする */
     cursor:pointer;
-    background:#fff;
-    color:#333;
-    border:3px solid #333;
+    /* --- 色の変更点 --- */
+    background: #FF0000; /* 背景を赤に */
+    color: #fff; /* アイコン/テキストの色を白に変更し、視認性を向上 */
+    border: 3px solid #CC0000; /* 枠線を濃い赤に */
     box-shadow:0 6px 12px rgba(0,0,0,0.3);
     /* アイコンを中央に配置するための調整 */
     display: flex;
@@ -48,7 +46,7 @@
 
   /* ボタン内のアイコン/テキストのサイズ調整 */
   #capture-button::before {
-    content: "📸";
+    content: "📸!";
     font-size: 6vw; /* 15vw に収まるように調整 */
   }
 </style>
