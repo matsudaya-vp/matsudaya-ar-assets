@@ -22,28 +22,41 @@
 
   body { 
     margin: 0; 
-    overflow: hidden; 
+    padding: 0;
+    overflow: hidden; /* スクロール防止 */
     background: #000;
     touch-action: manipulation;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    /* スマホ画面固定 */
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh; /* 動的ビューポート対応 */
   }
 
   #video-feed, #character-overlay {
-    position: fixed; 
+    position: absolute; /* fixedからabsoluteに変更 */
     top: 0; 
     left: 0; 
     width: 100%; 
     height: 100%; 
     object-fit: cover;
     will-change: transform;
-    aspect-ratio: 16 / 9; /* CLS対策 */
+    /* aspect-ratioを削除（CLS対策が問題の原因） */
   }
 
   #video-feed { z-index: 1; }
-  #character-overlay { z-index: 2; }
+  #character-overlay { 
+    z-index: 2;
+    /* PNG透過保持のための設定 */
+    background: transparent;
+    opacity: 1;
+  }
 
   #ui-container {
-    position: fixed;
+    position: absolute; /* fixedからabsoluteに変更 */
     top: calc(var(--button-position) - 1vw);
     width: 100%;
     display: flex;
@@ -66,14 +79,19 @@
     user-select: none;
     position: relative;
     overflow: hidden;
+    /* ボタン表示確保 */
+    display: block;
+    visibility: visible;
+    opacity: 1;
   }
 
   #capture-button:active {
     transform: translateY(-50%) scale(0.95);
   }
 
+  /* ローディング状態のスタイル修正 */
   .button-loading {
-    opacity: 0.7;
+    opacity: 0.7 !important; /* !importantで確実に適用 */
     pointer-events: none;
   }
 
@@ -98,7 +116,7 @@
 
   /* プログレス表示 */
   .progress-container {
-    position: fixed;
+    position: absolute; /* fixedからabsoluteに変更 */
     bottom: 20px;
     left: 50%;
     transform: translateX(-50%);
@@ -129,7 +147,7 @@
 
   /* フラッシュエフェクト */
   .camera-flash {
-    position: fixed;
+    position: absolute; /* fixedからabsoluteに変更 */
     top: 0;
     left: 0;
     width: 100%;
@@ -152,7 +170,7 @@
 
   /* エラーメッセージ */
   .error-message {
-    position: fixed;
+    position: absolute; /* fixedからabsoluteに変更 */
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
@@ -436,7 +454,7 @@ class CameraController {
 }
 
 /**
- * Canvas描画最適化クラス
+ * Canvas描画最適化クラス（透過対応修正）
  */
 class CanvasRenderer {
   constructor(config, memoryManager) {
@@ -448,16 +466,20 @@ class CanvasRenderer {
     const { width: HD_W, height: HD_H, quality, format } = this.config.get('capture');
     
     const canvas = this.memoryManager.getCanvas(HD_W, HD_H);
+    // 透過保持のためalpha: trueに変更
     const ctx = canvas.getContext('2d', { 
-      alpha: false,
+      alpha: true, // 透過保持のため true に変更
       willReadFrequently: false 
     });
 
     try {
+      // 背景を透明にクリア（白で塗りつぶさない）
+      ctx.clearRect(0, 0, HD_W, HD_H);
+      
       // 背景（ビデオ）の描画
       this.drawVideoToCanvas(ctx, video, HD_W, HD_H);
       
-      // オーバーレイの描画
+      // オーバーレイの描画（透過保持）
       this.drawOverlayToCanvas(ctx, overlay, HD_W, HD_H);
 
       // Blobとして返す
@@ -493,6 +515,9 @@ class CanvasRenderer {
       canvasHeight
     );
 
+    // 透過PNG保持のため、globalCompositeOperationを設定
+    ctx.globalCompositeOperation = 'source-over';
+    
     ctx.drawImage(
       overlay,
       cropData.srcX, cropData.srcY, cropData.srcW, cropData.srcH,
@@ -840,10 +865,10 @@ class PhotoFrameApp {
   }
 
   async warmupCanvas() {
-    // Canvas機能のウォームアップ
+    // Canvas機能のウォームアップ（透過対応）
     const canvas = this.memoryManager.getCanvas(100, 100);
-    const ctx = canvas.getContext('2d');
-    ctx.fillRect(0, 0, 1, 1);
+    const ctx = canvas.getContext('2d', { alpha: true }); // 透過対応
+    ctx.clearRect(0, 0, 100, 100); // 白で塗りつぶさず透明にクリア
     this.memoryManager.releaseCanvas(canvas);
   }
 
@@ -926,7 +951,6 @@ class PhotoFrameApp {
     // 画面向き変更後のレイアウト調整
     setTimeout(() => {
       if (this.video.videoWidth && this.video.videoHeight) {
-        // 必要に応じてビデオ表示の調整
         console.log('Orientation changed, layout adjusted');
       }
     }, 100);
