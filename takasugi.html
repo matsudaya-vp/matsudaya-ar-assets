@@ -6,6 +6,7 @@
 <title>Sinsaku Takasugi Photo Frame</title>
 
 <style>
+  /* 元の基本構造を維持 */
   body { 
     margin: 0; 
     overflow: hidden; 
@@ -13,6 +14,7 @@
     touch-action: manipulation;
   }
 
+  /* 元の表示方式を復元 */
   #video-feed, #character-overlay {
     position: fixed; 
     top: 0; 
@@ -25,45 +27,22 @@
 
   #character-overlay { 
     z-index: 2; 
+    /* PNG透過保持 */
     background: transparent;
   }
 
-  /* シンプルな絶対座標配置 - サイズ変更なし */
   #ui-container {
     position: fixed;
-    /* 画面比率に応じて位置を調整するが、サイズは固定 */
-    bottom: 120px;
-    left: 50%;
-    transform: translateX(-50%);
+    top: calc(80dvh - 1vw); 
+    width: 100%;
+    display: flex;
+    justify-content: center;
     z-index: 3;
   }
 
-  /* 画面比率別の位置調整 */
-  @media (min-aspect-ratio: 19/9) {
-    /* iPhone等の縦長画面 */
-    #ui-container {
-      bottom: 140px;
-    }
-  }
-
-  @media (max-aspect-ratio: 16/9) {
-    /* より正方形に近い画面 */
-    #ui-container {
-      bottom: 100px;
-    }
-  }
-
-  @media (orientation: landscape) {
-    /* 横向き */
-    #ui-container {
-      bottom: 60px;
-    }
-  }
-
-  /* ボタンサイズは常に80px固定 */
   #capture-button {
-    width: 80px !important;
-    height: 80px !important;
+    width: 15vw;
+    height: 15vw;
     padding: 0;
     font-size: 0;
     border-radius: 50%;
@@ -72,25 +51,19 @@
     color: transparent; 
     border: 4px double #808080;
     box-shadow: 0 6px 12px rgba(0,0,0,0.3);
+    transform: translateY(-50%); 
     transition: all 0.2s ease;
     user-select: none;
-    touch-action: manipulation;
-    /* サイズ変更を防ぐ */
-    min-width: 80px;
-    max-width: 80px;
-    min-height: 80px;
-    max-height: 80px;
-    box-sizing: border-box;
   }
 
   #capture-button:active {
-    transform: scale(0.95);
+    transform: translateY(-50%) scale(0.95);
   }
 
-  /* 進捗表示 */
+  /* 改善機能のスタイル */
   .progress-overlay {
     position: fixed;
-    bottom: 60px;
+    bottom: 20px;
     left: 50%;
     transform: translateX(-50%);
     background: rgba(0,0,0,0.8);
@@ -99,10 +72,8 @@
     border-radius: 20px;
     z-index: 4;
     display: none;
-    font-size: 14px;
   }
 
-  /* フラッシュエフェクト */
   .camera-flash {
     position: fixed;
     top: 0;
@@ -120,7 +91,6 @@
     opacity: 0.7;
   }
 
-  /* エラー表示 */
   .error-display {
     position: fixed;
     top: 50%;
@@ -134,38 +104,11 @@
     text-align: center;
     max-width: 80%;
     display: none;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-  }
-
-  .error-display button {
-    background: rgba(255,255,255,0.2);
-    border: 1px solid rgba(255,255,255,0.3);
-    color: white;
-    padding: 8px 16px;
-    border-radius: 6px;
-    margin-top: 10px;
-    cursor: pointer;
   }
 
   .button-processing {
     opacity: 0.7;
     pointer-events: none;
-  }
-
-  /* デバッグ用 */
-  .debug-overlay {
-    position: fixed;
-    top: 10px;
-    left: 10px;
-    background: rgba(0,0,0,0.7);
-    color: white;
-    padding: 8px;
-    font-size: 12px;
-    border-radius: 4px;
-    z-index: 6;
-    display: none;
-    font-family: monospace;
-    max-width: 200px;
   }
 </style>
 </head>
@@ -173,34 +116,31 @@
 <body>
 <video id="video-feed" autoplay playsinline muted></video>
 <img id="character-overlay" src="pf-takasugi2.png" alt="高杉晋作">
-
-<!-- シンプルな固定サイズUI -->
 <div id="ui-container">
   <button id="capture-button" aria-label="写真を撮影"></button>
 </div>
 
-<!-- 機能要素 -->
+<!-- 改善機能の要素 -->
 <div id="progress-overlay" class="progress-overlay"></div>
 <div id="camera-flash" class="camera-flash"></div>
 <div id="error-display" class="error-display"></div>
-<div id="debug-overlay" class="debug-overlay"></div>
 
 <script>
 'use strict';
 
 /**
- * シンプル固定サイズ版PhotoFrameアプリ
+ * 改善されたPhotoFrameアプリ
+ * 元の動作を保持しつつ、必要最小限の機能改善を実装
  */
-class SimpleFixedPhotoFrame {
+class ImprovedPhotoFrame {
   constructor() {
-    // DOM要素
+    // DOM要素の取得
     this.video = document.getElementById('video-feed');
     this.overlay = document.getElementById('character-overlay');
     this.captureButton = document.getElementById('capture-button');
     this.progressOverlay = document.getElementById('progress-overlay');
     this.cameraFlash = document.getElementById('camera-flash');
     this.errorDisplay = document.getElementById('error-display');
-    this.debugOverlay = document.getElementById('debug-overlay');
     
     // 設定
     this.config = {
@@ -211,14 +151,14 @@ class SimpleFixedPhotoFrame {
           width: { ideal: 2436 }, 
           height: { ideal: 1125 } 
         } 
-      },
-      debug: false
+      }
     };
     
-    // 状態
+    // 状態管理
     this.isCapturing = false;
     this.stream = null;
     
+    // 初期化
     this.init();
   }
 
@@ -227,43 +167,10 @@ class SimpleFixedPhotoFrame {
       await this.initCamera();
       await this.waitForOverlay();
       this.setupEvents();
-      
-      // ボタンサイズを強制的に確認・修正
-      this.ensureButtonSize();
-      
-      if (this.config.debug) {
-        this.enableDebugMode();
-      }
-      
       console.log('App initialized successfully');
-      console.log('Button size:', this.captureButton.offsetWidth, 'x', this.captureButton.offsetHeight);
     } catch (error) {
       this.showError('初期化に失敗しました: ' + error.message);
     }
-  }
-
-  /**
-   * ボタンサイズを強制的に80pxに固定
-   */
-  ensureButtonSize() {
-    // 強制的にサイズを設定
-    this.captureButton.style.width = '80px';
-    this.captureButton.style.height = '80px';
-    this.captureButton.style.minWidth = '80px';
-    this.captureButton.style.maxWidth = '80px';
-    this.captureButton.style.minHeight = '80px';
-    this.captureButton.style.maxHeight = '80px';
-    this.captureButton.style.boxSizing = 'border-box';
-    
-    // サイズチェック
-    setTimeout(() => {
-      const rect = this.captureButton.getBoundingClientRect();
-      if (Math.abs(rect.width - 80) > 2 || Math.abs(rect.height - 80) > 2) {
-        console.warn('Button size incorrect:', rect.width, 'x', rect.height);
-        // 再試行
-        this.captureButton.style.cssText += 'width: 80px !important; height: 80px !important;';
-      }
-    }, 100);
   }
 
   async initCamera() {
@@ -295,66 +202,27 @@ class SimpleFixedPhotoFrame {
   }
 
   setupEvents() {
-    // 撮影ボタン
+    // 撮影ボタン（シンプルなデバウンス）
     let lastClick = 0;
-    const handleClick = (e) => {
+    this.captureButton.addEventListener('click', (e) => {
       const now = Date.now();
-      if (now - lastClick < 300) return;
+      if (now - lastClick < 300) return; // 300ms デバウンス
       lastClick = now;
       this.handleCapture();
-    };
-
-    this.captureButton.addEventListener('click', handleClick);
-
-    // リサイズ時にボタンサイズを再チェック
-    window.addEventListener('resize', () => {
-      setTimeout(() => {
-        this.ensureButtonSize();
-        if (this.config.debug) {
-          this.updateDebugInfo();
-        }
-      }, 100);
     });
 
-    window.addEventListener('orientationchange', () => {
-      setTimeout(() => {
-        this.ensureButtonSize();
-        if (this.config.debug) {
-          this.updateDebugInfo();
-        }
-      }, 300);
-    });
-
-    // ページ可視性制御
+    // ページ可視性の制御
     document.addEventListener('visibilitychange', () => {
       if (this.stream) {
-        this.stream.getVideoTracks().forEach(track => {
+        const tracks = this.stream.getVideoTracks();
+        tracks.forEach(track => {
           track.enabled = !document.hidden;
         });
       }
     });
 
+    // リソースクリーンアップ
     window.addEventListener('beforeunload', () => this.cleanup());
-  }
-
-  enableDebugMode() {
-    this.config.debug = true;
-    this.debugOverlay.style.display = 'block';
-    this.updateDebugInfo();
-  }
-
-  updateDebugInfo() {
-    const rect = this.captureButton.getBoundingClientRect();
-    const containerRect = document.getElementById('ui-container').getBoundingClientRect();
-    
-    this.debugOverlay.innerHTML = `
-      画面: ${window.innerWidth}×${window.innerHeight}<br>
-      ボタンサイズ: ${Math.round(rect.width)}×${Math.round(rect.height)}px<br>
-      ボタン位置: (${Math.round(rect.left + rect.width/2)}, ${Math.round(rect.top + rect.height/2)})<br>
-      下からの距離: ${window.innerHeight - rect.bottom}px<br>
-      CSS width: ${getComputedStyle(this.captureButton).width}<br>
-      CSS height: ${getComputedStyle(this.captureButton).height}
-    `;
   }
 
   async handleCapture() {
@@ -364,17 +232,24 @@ class SimpleFixedPhotoFrame {
       this.isCapturing = true;
       this.captureButton.classList.add('button-processing');
       
+      // プログレス表示
       this.showProgress('撮影中...');
+      
+      // フラッシュエフェクト
       await this.flashEffect();
       
+      // 撮影処理
       this.showProgress('画像処理中...');
       const blob = await this.capturePhoto();
       
+      // ダウンロード
       this.showProgress('保存中...');
       this.downloadImage(blob);
       
+      // 完了
       this.hideProgress();
       
+      // ハプティックフィードバック
       if (navigator.vibrate) {
         navigator.vibrate(50);
       }
@@ -395,14 +270,20 @@ class SimpleFixedPhotoFrame {
     canvas.width = width;
     canvas.height = height;
     
+    // 透過保持のためのContext設定
     const ctx = canvas.getContext('2d', { alpha: true });
+    
+    // 背景を透明にクリア（重要：白で塗りつぶさない）
     ctx.clearRect(0, 0, width, height);
     
+    // ビデオの描画（中央クロップ）
     this.drawCroppedImage(ctx, this.video, width, height);
     
+    // オーバーレイの描画（透過保持）
     ctx.globalCompositeOperation = 'source-over';
     this.drawCroppedImage(ctx, this.overlay, width, height);
     
+    // Blobに変換
     return new Promise((resolve, reject) => {
       canvas.toBlob((blob) => {
         if (blob) {
@@ -428,11 +309,13 @@ class SimpleFixedPhotoFrame {
     let sx, sy, sw, sh;
     
     if (sourceRatio > targetRatio) {
+      // ソースの方が横長：横をクロップ
       sh = sourceHeight;
       sw = sh * targetRatio;
       sx = (sourceWidth - sw) / 2;
       sy = 0;
     } else {
+      // ソースの方が縦長：縦をクロップ
       sw = sourceWidth;
       sh = sw / targetRatio;
       sx = 0;
@@ -451,10 +334,12 @@ class SimpleFixedPhotoFrame {
     link.download = `matsudaya_photo_${timestamp}.png`;
     link.href = URL.createObjectURL(blob);
     
+    // 一時的にDOMに追加してクリック
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
     
+    // メモリクリーンアップ
     setTimeout(() => URL.revokeObjectURL(link.href), 100);
   }
 
@@ -481,6 +366,7 @@ class SimpleFixedPhotoFrame {
     `;
     this.errorDisplay.style.display = 'block';
     
+    // 5秒後に自動で閉じる
     setTimeout(() => {
       this.errorDisplay.style.display = 'none';
     }, 5000);
@@ -501,14 +387,7 @@ class SimpleFixedPhotoFrame {
 // アプリケーション開始
 let app;
 document.addEventListener('DOMContentLoaded', () => {
-  app = new SimpleFixedPhotoFrame();
-});
-
-// デバッグモード切り替え
-document.addEventListener('keydown', (e) => {
-  if (e.ctrlKey && e.shiftKey && e.key === 'D' && app) {
-    app.enableDebugMode();
-  }
+  app = new ImprovedPhotoFrame();
 });
 
 // グローバルエラーハンドリング
