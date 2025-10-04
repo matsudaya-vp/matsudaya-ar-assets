@@ -52,13 +52,12 @@
             pointer-events: none; /* 下の要素（カメラ映像）をクリックできるように */
         }
 
-        /* キャラクター画像 */
+        /* キャラクター画像 (画面幅いっぱいに表示) */
         #character-image {
-            max-width: 90vw; /* スマホ画面の幅を基準に合わせる（少し余白を持たせても良い） */
-            max-height: 90vh; /* 縦長画像対応のため高さも制限 */
-            width: auto;
-            height: auto;
-            object-fit: contain; /* 縦横比維持 */
+            width: 100%; /* 画面幅いっぱいに表示 */
+            height: auto; /* 縦横比を維持しつつ高さを自動調整 */
+            max-height: 100vh; /* 縦長すぎる場合に画面高さを超えないように一応制限 */
+            object-fit: contain; /* 縦横比を維持 */
         }
 
         /* UIコンテナ：画面下部に固定、安全領域対応 */
@@ -247,23 +246,18 @@
             const charNaturalHeight = characterImage.naturalHeight;
             const charRatio = charNaturalWidth / charNaturalHeight;
 
-            // キャラクター画像の表示サイズを計算 (撮影画像の幅の約90%を最大サイズとして、縦横比を維持)
-            const MAX_CHAR_WIDTH_ON_CANVAS = CAPTURE_WIDTH * 0.9;
-            const MAX_CHAR_HEIGHT_ON_CANVAS = CAPTURE_HEIGHT * 0.9;
-            
-            let charDrawWidth, charDrawHeight;
+            // キャラクター画像の表示サイズを計算 (Canvasの幅基準で縦横比維持)
+            // まず、Canvasの幅いっぱいにキャラクター画像を合わせることを試みる
+            let charDrawWidth = CAPTURE_WIDTH;
+            let charDrawHeight = charDrawWidth / charRatio;
 
-            // 縦横比を維持しつつ、最大サイズに収まるように調整
-            if (charNaturalWidth / charNaturalHeight > MAX_CHAR_WIDTH_ON_CANVAS / MAX_CHAR_HEIGHT_ON_CANVAS) {
-                // 画像が横長または幅が最大を超える場合、幅基準
-                charDrawWidth = MAX_CHAR_WIDTH_ON_CANVAS;
-                charDrawHeight = charDrawWidth / charRatio;
-            } else {
-                // 画像が縦長または高さが最大を超える場合、高さ基準
-                charDrawHeight = MAX_CHAR_HEIGHT_ON_CANVAS;
-                charDrawWidth = charDrawHeight * charRatio;
+            // もし高さがCanvasの高さを超える場合、高さを基準に再計算し、幅も調整
+            // これにより、縦長の画像でもCanvas内に収まるように調整される
+            if (charDrawHeight > CAPTURE_HEIGHT) {
+                charDrawHeight = CAPTURE_HEIGHT; // Canvasの高さに合わせる
+                charDrawWidth = charDrawHeight * charRatio; // 縦横比を維持して幅を再計算
             }
-
+            
             // Canvas中央に配置
             const charX = (CAPTURE_WIDTH - charDrawWidth) / 2;
             const charY = (CAPTURE_HEIGHT - charDrawHeight) / 2;
