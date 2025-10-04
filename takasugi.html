@@ -14,50 +14,111 @@
     touch-action: manipulation;
   }
 
-  /* コンテナで画像とボタンの相対位置を管理 */
-  #main-container {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: 100vw;
-    height: 100vh;
-    max-width: 100%;
-    max-height: 100%;
-  }
-
-  /* ビデオとオーバーレイを相対位置で配置 */
+  /* 元の表示方式を復元 */
   #video-feed, #character-overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
+    position: fixed; 
+    top: 0; 
+    left: 0; 
+    width: 100%; 
+    height: 100%; 
     object-fit: cover;
+    z-index: 1;
   }
 
   #character-overlay { 
-    z-index: 2;
+    z-index: 2; 
+    /* PNG透過保持 */
     background: transparent;
   }
 
-  /* ボタンコンテナを画像基準で配置 */
+  /* 改善されたボタン配置システム */
+  :root {
+    --button-bottom: 120px;
+    --button-size-base: 15vw;
+    --button-size-min: 60px;
+    --button-size-max: 120px;
+  }
+
+  /* デバイス別プリセット */
+  /* iPhone SE (375x667) */
+  @media (max-width: 375px) and (max-height: 667px) {
+    :root { 
+      --button-bottom: 100px;
+      --button-size-base: 18vw;
+    }
+  }
+
+  /* iPhone 12/13/14 (390x844) */
+  @media (max-width: 390px) and (min-height: 844px) {
+    :root { 
+      --button-bottom: 130px;
+      --button-size-base: 16vw;
+    }
+  }
+
+  /* iPhone 12/13/14 Pro Max (428x926) */
+  @media (max-width: 428px) and (min-height: 926px) {
+    :root { 
+      --button-bottom: 140px;
+      --button-size-base: 15vw;
+    }
+  }
+
+  /* Android 大画面 */
+  @media (min-width: 400px) and (min-height: 900px) {
+    :root { 
+      --button-bottom: 150px;
+      --button-size-base: 12vw;
+    }
+  }
+
+  /* 小さい画面全般 */
+  @media (max-height: 600px) {
+    :root {
+      --button-bottom: 80px;
+      --button-size-base: 16vw;
+    }
+  }
+
+  /* 横向き対応 */
+  @media (orientation: landscape) {
+    :root {
+      --button-bottom: 60px;
+      --button-size-base: 12vh;
+      --button-size-max: 80px;
+    }
+  }
+
+  /* 横向き + 小さい画面 */
+  @media (orientation: landscape) and (max-height: 500px) {
+    :root {
+      --button-bottom: 40px;
+      --button-size-base: 10vh;
+    }
+  }
+
   #ui-container {
-    position: absolute;
-    bottom: 12%;
+    position: fixed;
+    bottom: calc(var(--button-bottom) + env(safe-area-inset-bottom, 0px));
     left: 50%;
     transform: translateX(-50%);
     z-index: 3;
+    /* コンテナクエリ対応 */
+    container-type: inline-size;
+  }
+
+  /* フォールバック対応（古いブラウザ） */
+  @supports not (bottom: env(safe-area-inset-bottom)) {
+    #ui-container {
+      bottom: var(--button-bottom);
+    }
   }
 
   #capture-button {
-    /* 固定サイズでブラウザ間の差異を統一 */
-    width: 80px;
-    height: 80px;
+    width: clamp(var(--button-size-min), var(--button-size-base), var(--button-size-max));
+    height: clamp(var(--button-size-min), var(--button-size-base), var(--button-size-max));
     padding: 0;
-    margin: 0;
     font-size: 0;
-    line-height: 1;
     border-radius: 50%;
     cursor: pointer;
     background: #E0E0E0;
@@ -66,55 +127,22 @@
     box-shadow: 0 6px 12px rgba(0,0,0,0.3);
     transition: all 0.2s ease;
     user-select: none;
-    
-    /* ブラウザ固有のスタイルをリセット */
-    -webkit-appearance: none;
-    -moz-appearance: none;
-    appearance: none;
-    outline: none;
-    
-    /* ボックスサイズを統一 */
-    box-sizing: border-box;
-    
-    /* フレックスで中央揃え（念のため） */
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    
-    /* タッチ領域を確保 */
+    /* タッチ領域を確保（アクセシビリティ） */
     min-width: 44px;
     min-height: 44px;
+    /* タッチ最適化 */
+    touch-action: manipulation;
   }
 
   #capture-button:active {
     transform: scale(0.95);
-  }
-
-  #capture-button:focus {
-    outline: 2px solid rgba(255, 255, 255, 0.5);
-    outline-offset: 2px;
-  }
-
-  /* 小さい画面でのサイズ調整（必要最小限） */
-  @media (max-width: 360px) {
-    #capture-button {
-      width: 70px;
-      height: 70px;
-    }
-  }
-
-  /* 大きい画面でのサイズ調整（必要最小限） */
-  @media (min-width: 1024px) {
-    #capture-button {
-      width: 90px;
-      height: 90px;
-    }
+    box-shadow: 0 4px 8px rgba(0,0,0,0.3);
   }
 
   /* 改善機能のスタイル */
   .progress-overlay {
     position: fixed;
-    bottom: 20px;
+    bottom: calc(20px + env(safe-area-inset-bottom, 0px));
     left: 50%;
     transform: translateX(-50%);
     background: rgba(0,0,0,0.8);
@@ -124,7 +152,7 @@
     z-index: 4;
     display: none;
     font-size: 14px;
-    box-sizing: border-box;
+    white-space: nowrap;
   }
 
   .camera-flash {
@@ -157,8 +185,17 @@
     text-align: center;
     max-width: 80%;
     display: none;
-    box-sizing: border-box;
-    font-size: 16px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+  }
+
+  .error-display button {
+    background: rgba(255,255,255,0.2);
+    border: 1px solid rgba(255,255,255,0.3);
+    color: white;
+    padding: 8px 16px;
+    border-radius: 6px;
+    margin-top: 10px;
+    cursor: pointer;
   }
 
   .button-processing {
@@ -166,64 +203,53 @@
     pointer-events: none;
   }
 
-  /* デバッグ用：アンカーポイントを可視化したい場合 */
-  .debug-anchor {
-    position: absolute;
-    width: 4px;
-    height: 4px;
-    background: red;
-    z-index: 999;
+  /* 追加：デバッグ情報表示（開発時のみ） */
+  .debug-info {
+    position: fixed;
+    top: 10px;
+    left: 10px;
+    background: rgba(0,0,0,0.7);
+    color: white;
+    padding: 8px;
+    font-size: 12px;
+    border-radius: 4px;
+    z-index: 5;
     display: none; /* 本番では非表示 */
-  }
-
-  .debug-anchor.bottom-center {
-    bottom: 12%;
-    left: 50%;
-    transform: translateX(-50%);
-  }
-
-  /* 全体的なボックスサイズ統一 */
-  * {
-    box-sizing: border-box;
   }
 </style>
 </head>
 
 <body>
-<div id="main-container">
-  <video id="video-feed" autoplay playsinline muted></video>
-  <img id="character-overlay" src="pf-takasugi2.png" alt="高杉晋作">
-  
-  <!-- デバッグ用アンカーポイント（必要に応じて表示） -->
-  <div class="debug-anchor bottom-center"></div>
-  
-  <div id="ui-container">
-    <button id="capture-button" aria-label="写真を撮影"></button>
-  </div>
+<video id="video-feed" autoplay playsinline muted></video>
+<img id="character-overlay" src="pf-takasugi2.png" alt="高杉晋作">
+<div id="ui-container">
+  <button id="capture-button" aria-label="写真を撮影"></button>
 </div>
 
 <!-- 改善機能の要素 -->
 <div id="progress-overlay" class="progress-overlay"></div>
 <div id="camera-flash" class="camera-flash"></div>
 <div id="error-display" class="error-display"></div>
+<div id="debug-info" class="debug-info"></div>
 
 <script>
 'use strict';
 
 /**
  * 改善されたPhotoFrameアプリ
- * ボタンサイズ統一版
+ * 元の動作を保持しつつ、安定したボタン配置システムを実装
  */
 class ImprovedPhotoFrame {
   constructor() {
     // DOM要素の取得
-    this.mainContainer = document.getElementById('main-container');
     this.video = document.getElementById('video-feed');
     this.overlay = document.getElementById('character-overlay');
     this.captureButton = document.getElementById('capture-button');
     this.progressOverlay = document.getElementById('progress-overlay');
     this.cameraFlash = document.getElementById('camera-flash');
     this.errorDisplay = document.getElementById('error-display');
+    this.debugInfo = document.getElementById('debug-info');
+    this.uiContainer = document.getElementById('ui-container');
     
     // 設定
     this.config = {
@@ -234,12 +260,15 @@ class ImprovedPhotoFrame {
           width: { ideal: 2436 }, 
           height: { ideal: 1125 } 
         } 
-      }
+      },
+      // デバッグモード（本番では false に設定）
+      debug: false
     };
     
     // 状態管理
     this.isCapturing = false;
     this.stream = null;
+    this.resizeTimeout = null;
     
     // 初期化
     this.init();
@@ -250,6 +279,12 @@ class ImprovedPhotoFrame {
       await this.initCamera();
       await this.waitForOverlay();
       this.setupEvents();
+      this.adjustButtonPosition();
+      
+      if (this.config.debug) {
+        this.showDebugInfo();
+      }
+      
       console.log('App initialized successfully');
     } catch (error) {
       this.showError('初期化に失敗しました: ' + error.message);
@@ -294,9 +329,26 @@ class ImprovedPhotoFrame {
       this.handleCapture();
     });
 
-    // タッチイベントでより確実な反応を提供
-    this.captureButton.addEventListener('touchstart', (e) => {
-      e.preventDefault(); // デフォルトの動作を防ぐ
+    // リサイズ・回転時の位置調整
+    const handleResize = () => {
+      clearTimeout(this.resizeTimeout);
+      this.resizeTimeout = setTimeout(() => {
+        this.adjustButtonPosition();
+        if (this.config.debug) {
+          this.showDebugInfo();
+        }
+      }, 100);
+    };
+
+    window.addEventListener('resize', handleResize);
+    window.addEventListener('orientationchange', () => {
+      // 向き変更時は少し遅延させる（iOS対応）
+      setTimeout(() => {
+        this.adjustButtonPosition();
+        if (this.config.debug) {
+          this.showDebugInfo();
+        }
+      }, 300);
     });
 
     // ページ可視性の制御
@@ -311,6 +363,126 @@ class ImprovedPhotoFrame {
 
     // リソースクリーンアップ
     window.addEventListener('beforeunload', () => this.cleanup());
+  }
+
+  /**
+   * 最適なボタン位置を計算
+   */
+  calculateOptimalButtonPosition() {
+    const vh = window.innerHeight;
+    const vw = window.innerWidth;
+    const isLandscape = window.innerWidth > window.innerHeight;
+    
+    let bottomOffset;
+    
+    if (isLandscape) {
+      // 横向きの場合
+      if (vh <= 400) {
+        bottomOffset = 30;
+      } else if (vh <= 500) {
+        bottomOffset = 40;
+      } else {
+        bottomOffset = 60;
+      }
+    } else {
+      // 縦向きの場合
+      if (vh <= 600) {
+        // 小さい画面：固定値優先
+        bottomOffset = 80;
+      } else if (vh <= 667) {
+        // iPhone SE サイズ
+        bottomOffset = 100;
+      } else if (vh <= 800) {
+        // 中くらい：比例計算だが範囲制限
+        bottomOffset = Math.max(100, Math.min(vh * 0.15, 130));
+      } else if (vh <= 844) {
+        // iPhone 12/13/14 サイズ
+        bottomOffset = 130;
+      } else if (vh <= 926) {
+        // iPhone Pro Max サイズ
+        bottomOffset = 140;
+      } else {
+        // 大きい画面：上限設定
+        bottomOffset = Math.min(vh * 0.16, 180);
+      }
+    }
+    
+    // セーフエリアの追加
+    const safeAreaBottom = this.getSafeAreaBottom();
+    
+    return bottomOffset + safeAreaBottom;
+  }
+
+  /**
+   * セーフエリア下部の値を取得
+   */
+  getSafeAreaBottom() {
+    // CSS env()が使えない場合の fallback
+    if (!CSS.supports('padding', 'env(safe-area-inset-bottom)')) {
+      // 手動でデバイス判定
+      const isIPhoneX = /iPhone/.test(navigator.userAgent) && 
+                        window.innerHeight >= 812;
+      return isIPhoneX ? 34 : 0;
+    }
+    return 0; // CSSで処理される
+  }
+
+  /**
+   * ボタン位置を動的に調整
+   */
+  adjustButtonPosition() {
+    if (!CSS.supports('bottom', 'clamp(60px, 15vw, 120px)')) {
+      // clamp()が使えない古いブラウザの場合はJavaScriptで制御
+      const vh = window.innerHeight;
+      const vw = window.innerWidth;
+      const bottomOffset = this.calculateOptimalButtonPosition();
+      
+      this.uiContainer.style.bottom = `${bottomOffset}px`;
+      
+      // ボタンサイズも調整
+      const isLandscape = window.innerWidth > window.innerHeight;
+      let buttonSize;
+      
+      if (isLandscape) {
+        buttonSize = Math.max(Math.min(vh * 0.12, 80), 50);
+      } else {
+        buttonSize = Math.max(Math.min(vw * 0.15, 120), 60);
+      }
+      
+      this.captureButton.style.width = `${buttonSize}px`;
+      this.captureButton.style.height = `${buttonSize}px`;
+      
+      if (this.config.debug) {
+        console.log(`Manual positioning: ${bottomOffset}px from bottom, button: ${buttonSize}px (screen: ${vw}x${vh})`);
+      }
+    } else {
+      // モダンブラウザの場合はCSSに任せる
+      if (this.config.debug) {
+        const computedStyle = window.getComputedStyle(this.uiContainer);
+        console.log(`CSS positioning: bottom=${computedStyle.bottom}`);
+      }
+    }
+  }
+
+  /**
+   * デバッグ情報を表示
+   */
+  showDebugInfo() {
+    if (!this.config.debug) return;
+    
+    const vh = window.innerHeight;
+    const vw = window.innerWidth;
+    const isLandscape = window.innerWidth > window.innerHeight;
+    const orientation = isLandscape ? 'landscape' : 'portrait';
+    const bottomOffset = this.calculateOptimalButtonPosition();
+    
+    this.debugInfo.innerHTML = `
+      画面: ${vw}×${vh}<br>
+      向き: ${orientation}<br>
+      ボタン位置: ${bottomOffset}px<br>
+      UA: ${navigator.userAgent.includes('iPhone') ? 'iPhone' : 'Other'}
+    `;
+    this.debugInfo.style.display = 'block';
   }
 
   async handleCapture() {
@@ -468,6 +640,10 @@ class ImprovedPhotoFrame {
     if (this.stream) {
       this.stream.getTracks().forEach(track => track.stop());
       this.stream = null;
+    }
+    
+    if (this.resizeTimeout) {
+      clearTimeout(this.resizeTimeout);
     }
   }
 }
