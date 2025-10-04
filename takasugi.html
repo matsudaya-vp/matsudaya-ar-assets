@@ -3,61 +3,37 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: blob:; media-src 'self' blob:;">
 <title>Sinsaku Takasugi Photo Frame</title>
 
 <style>
-  :root {
-    --button-size: 15vw;
-    --button-position: 80dvh;
-    --button-color: #E0E0E0;
-    --button-border-color: #808080;
-    --flash-duration: 200ms;
-    --progress-color: #4CAF50;
-  }
-
-  * {
-    box-sizing: border-box;
-  }
-
+  /* 元の基本構造を維持 */
   body { 
     margin: 0; 
-    padding: 0;
-    overflow: hidden; /* スクロール防止 */
-    background: #000;
+    overflow: hidden; 
+    background: #000; 
     touch-action: manipulation;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    /* スマホ画面固定 */
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    height: 100dvh; /* 動的ビューポート対応 */
   }
 
+  /* 元の表示方式を復元 */
   #video-feed, #character-overlay {
-    position: absolute; /* fixedからabsoluteに変更 */
+    position: fixed; 
     top: 0; 
     left: 0; 
     width: 100%; 
     height: 100%; 
     object-fit: cover;
-    will-change: transform;
-    /* aspect-ratioを削除（CLS対策が問題の原因） */
+    z-index: 1;
   }
 
-  #video-feed { z-index: 1; }
   #character-overlay { 
-    z-index: 2;
-    /* PNG透過保持のための設定 */
+    z-index: 2; 
+    /* PNG透過保持 */
     background: transparent;
-    opacity: 1;
   }
 
   #ui-container {
-    position: absolute; /* fixedからabsoluteに変更 */
-    top: calc(var(--button-position) - 1vw);
+    position: fixed;
+    top: calc(80dvh - 1vw); 
     width: 100%;
     display: flex;
     justify-content: center;
@@ -65,58 +41,28 @@
   }
 
   #capture-button {
-    width: var(--button-size);
-    height: var(--button-size);
+    width: 15vw;
+    height: 15vw;
     padding: 0;
     font-size: 0;
     border-radius: 50%;
     cursor: pointer;
-    background: var(--button-color);
-    border: 4px double var(--button-border-color);
+    background: #E0E0E0;
+    color: transparent; 
+    border: 4px double #808080;
     box-shadow: 0 6px 12px rgba(0,0,0,0.3);
-    transform: translateY(-50%);
+    transform: translateY(-50%); 
     transition: all 0.2s ease;
     user-select: none;
-    position: relative;
-    overflow: hidden;
-    /* ボタン表示確保 */
-    display: block;
-    visibility: visible;
-    opacity: 1;
   }
 
   #capture-button:active {
     transform: translateY(-50%) scale(0.95);
   }
 
-  /* ローディング状態のスタイル修正 */
-  .button-loading {
-    opacity: 0.7 !important; /* !importantで確実に適用 */
-    pointer-events: none;
-  }
-
-  .button-loading::after {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 20px;
-    height: 20px;
-    margin: -10px;
-    border: 2px solid #666;
-    border-top: 2px solid #fff;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-  }
-
-  @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-  }
-
-  /* プログレス表示 */
-  .progress-container {
-    position: absolute; /* fixedからabsoluteに変更 */
+  /* 改善機能のスタイル */
+  .progress-overlay {
+    position: fixed;
     bottom: 20px;
     left: 50%;
     transform: translateX(-50%);
@@ -124,30 +70,12 @@
     color: white;
     padding: 10px 20px;
     border-radius: 20px;
-    z-index: 5;
-    min-width: 200px;
-    text-align: center;
+    z-index: 4;
+    display: none;
   }
 
-  .progress-bar {
-    width: 100%;
-    height: 4px;
-    background: rgba(255,255,255,0.3);
-    border-radius: 2px;
-    margin-top: 8px;
-    overflow: hidden;
-  }
-
-  .progress-fill {
-    height: 100%;
-    background: var(--progress-color);
-    transition: width 0.3s ease;
-    border-radius: 2px;
-  }
-
-  /* フラッシュエフェクト */
   .camera-flash {
-    position: absolute; /* fixedからabsoluteに変更 */
+    position: fixed;
     top: 0;
     left: 0;
     width: 100%;
@@ -156,21 +84,15 @@
     z-index: 9999;
     opacity: 0;
     pointer-events: none;
+    transition: opacity 0.1s ease;
   }
 
-  .flash-animation {
-    animation: flash var(--flash-duration) ease-out;
+  .flash-active {
+    opacity: 0.7;
   }
 
-  @keyframes flash {
-    0% { opacity: 0; }
-    50% { opacity: 0.8; }
-    100% { opacity: 0; }
-  }
-
-  /* エラーメッセージ */
-  .error-message {
-    position: absolute; /* fixedからabsoluteに変更 */
+  .error-display {
+    position: fixed;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
@@ -180,31 +102,13 @@
     border-radius: 12px;
     z-index: 10;
     text-align: center;
-    max-width: 90%;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+    max-width: 80%;
+    display: none;
   }
 
-  .error-message button {
-    margin-top: 15px;
-    padding: 8px 16px;
-    background: rgba(255,255,255,0.2);
-    border: 1px solid rgba(255,255,255,0.3);
-    color: white;
-    border-radius: 6px;
-    cursor: pointer;
-  }
-
-  /* レスポンシブ対応 */
-  @media (max-width: 480px) {
-    :root {
-      --button-size: 18vw;
-    }
-  }
-
-  @media (orientation: landscape) {
-    :root {
-      --button-size: 12vh;
-    }
+  .button-processing {
+    opacity: 0.7;
+    pointer-events: none;
   }
 </style>
 </head>
@@ -213,825 +117,287 @@
 <video id="video-feed" autoplay playsinline muted></video>
 <img id="character-overlay" src="pf-takasugi2.png" alt="高杉晋作">
 <div id="ui-container">
-  <button id="capture-button" aria-label="写真を撮影" type="button"></button>
+  <button id="capture-button" aria-label="写真を撮影"></button>
 </div>
+
+<!-- 改善機能の要素 -->
+<div id="progress-overlay" class="progress-overlay"></div>
+<div id="camera-flash" class="camera-flash"></div>
+<div id="error-display" class="error-display"></div>
 
 <script>
 'use strict';
 
 /**
- * 設定管理クラス
+ * 改善されたPhotoFrameアプリ
+ * 元の動作を保持しつつ、必要最小限の機能改善を実装
  */
-class ConfigManager {
+class ImprovedPhotoFrame {
   constructor() {
-    this.config = new Map();
-    this.defaultConfig = {
-      capture: {
-        width: 1080,
-        height: 1920,
-        quality: 0.95,
-        format: 'image/png'
-      },
-      camera: {
-        video: {
-          facingMode: 'environment',
-          width: { ideal: 2436 },
-          height: { ideal: 1125 }
-        }
-      },
-      ui: {
-        debounceDelay: 300,
-        errorDisplayTime: 5000,
-        maxRetries: 3
+    // DOM要素の取得
+    this.video = document.getElementById('video-feed');
+    this.overlay = document.getElementById('character-overlay');
+    this.captureButton = document.getElementById('capture-button');
+    this.progressOverlay = document.getElementById('progress-overlay');
+    this.cameraFlash = document.getElementById('camera-flash');
+    this.errorDisplay = document.getElementById('error-display');
+    
+    // 設定
+    this.config = {
+      capture: { width: 1080, height: 1920, quality: 0.95 },
+      camera: { 
+        video: { 
+          facingMode: 'environment', 
+          width: { ideal: 2436 }, 
+          height: { ideal: 1125 } 
+        } 
       }
     };
     
-    this.loadDefaults();
+    // 状態管理
+    this.isCapturing = false;
+    this.stream = null;
+    
+    // 初期化
+    this.init();
   }
 
-  loadDefaults() {
-    Object.entries(this.defaultConfig).forEach(([key, value]) => {
-      this.config.set(key, value);
+  async init() {
+    try {
+      await this.initCamera();
+      await this.waitForOverlay();
+      this.setupEvents();
+      console.log('App initialized successfully');
+    } catch (error) {
+      this.showError('初期化に失敗しました: ' + error.message);
+    }
+  }
+
+  async initCamera() {
+    try {
+      this.stream = await navigator.mediaDevices.getUserMedia(this.config.camera);
+      this.video.srcObject = this.stream;
+      
+      return new Promise((resolve, reject) => {
+        this.video.onloadedmetadata = () => resolve();
+        this.video.onerror = () => reject(new Error('ビデオ読み込みエラー'));
+        setTimeout(() => reject(new Error('カメラ初期化タイムアウト')), 10000);
+      });
+    } catch (error) {
+      if (error.name === 'NotAllowedError') {
+        throw new Error('カメラの使用が許可されていません');
+      }
+      throw new Error('カメラアクセスエラー: ' + error.message);
+    }
+  }
+
+  async waitForOverlay() {
+    if (this.overlay.complete) return;
+    
+    return new Promise((resolve, reject) => {
+      this.overlay.onload = () => resolve();
+      this.overlay.onerror = () => reject(new Error('オーバーレイ画像の読み込みに失敗'));
+      setTimeout(() => reject(new Error('画像読み込みタイムアウト')), 5000);
     });
   }
 
-  get(key) {
-    return this.config.get(key);
+  setupEvents() {
+    // 撮影ボタン（シンプルなデバウンス）
+    let lastClick = 0;
+    this.captureButton.addEventListener('click', (e) => {
+      const now = Date.now();
+      if (now - lastClick < 300) return; // 300ms デバウンス
+      lastClick = now;
+      this.handleCapture();
+    });
+
+    // ページ可視性の制御
+    document.addEventListener('visibilitychange', () => {
+      if (this.stream) {
+        const tracks = this.stream.getVideoTracks();
+        tracks.forEach(track => {
+          track.enabled = !document.hidden;
+        });
+      }
+    });
+
+    // リソースクリーンアップ
+    window.addEventListener('beforeunload', () => this.cleanup());
   }
 
-  set(key, value) {
-    this.config.set(key, value);
+  async handleCapture() {
+    if (this.isCapturing) return;
+    
+    try {
+      this.isCapturing = true;
+      this.captureButton.classList.add('button-processing');
+      
+      // プログレス表示
+      this.showProgress('撮影中...');
+      
+      // フラッシュエフェクト
+      await this.flashEffect();
+      
+      // 撮影処理
+      this.showProgress('画像処理中...');
+      const blob = await this.capturePhoto();
+      
+      // ダウンロード
+      this.showProgress('保存中...');
+      this.downloadImage(blob);
+      
+      // 完了
+      this.hideProgress();
+      
+      // ハプティックフィードバック
+      if (navigator.vibrate) {
+        navigator.vibrate(50);
+      }
+      
+    } catch (error) {
+      this.hideProgress();
+      this.showError('撮影に失敗しました: ' + error.message);
+    } finally {
+      this.isCapturing = false;
+      this.captureButton.classList.remove('button-processing');
+    }
   }
-}
 
-/**
- * メモリ管理クラス
- */
-class MemoryManager {
-  constructor() {
-    this.resources = new WeakMap();
-    this.cleanupTasks = new Set();
-    this.canvasPool = [];
-    this.maxPoolSize = 3;
-  }
-
-  registerResource(obj, cleanup) {
-    this.resources.set(obj, cleanup);
-    this.cleanupTasks.add(cleanup);
-  }
-
-  getCanvas(width, height) {
-    const canvas = this.canvasPool.pop() || this.createOptimizedCanvas();
+  async capturePhoto() {
+    const canvas = document.createElement('canvas');
+    const { width, height, quality } = this.config.capture;
+    
     canvas.width = width;
     canvas.height = height;
-    return canvas;
-  }
-
-  releaseCanvas(canvas) {
-    if (this.canvasPool.length < this.maxPoolSize) {
-      // Canvasをクリアして再利用可能な状態にする
-      const ctx = canvas.getContext('2d');
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      this.canvasPool.push(canvas);
-    }
-  }
-
-  createOptimizedCanvas() {
-    if (typeof OffscreenCanvas !== 'undefined') {
-      return new OffscreenCanvas(1, 1);
-    }
-    const canvas = document.createElement('canvas');
-    canvas.style.display = 'none';
-    return canvas;
-  }
-
-  forceCleanup() {
-    this.cleanupTasks.forEach(task => {
-      try {
-        task();
-      } catch (error) {
-        console.warn('Cleanup task failed:', error);
-      }
-    });
-    this.cleanupTasks.clear();
     
-    // Canvas poolのクリア
-    this.canvasPool.length = 0;
+    // 透過保持のためのContext設定
+    const ctx = canvas.getContext('2d', { alpha: true });
     
-    // ガベージコレクションを促す（開発環境用）
-    if (window.gc && typeof window.gc === 'function') {
-      window.gc();
-    }
-  }
-}
-
-/**
- * エラーハンドリングクラス
- */
-class ErrorHandler {
-  static ERROR_TYPES = {
-    CAMERA_ACCESS: 'camera_access',
-    PERMISSION_DENIED: 'permission_denied',
-    NETWORK_ERROR: 'network_error',
-    RESOURCE_ERROR: 'resource_error',
-    CAPTURE_ERROR: 'capture_error'
-  };
-
-  constructor(config) {
-    this.config = config;
-    this.retryDelays = [1000, 2000, 4000]; // 指数バックオフ
-  }
-
-  async withRetry(operation, maxRetries = null) {
-    const attempts = maxRetries || this.config.get('ui').maxRetries;
+    // 背景を透明にクリア（重要：白で塗りつぶさない）
+    ctx.clearRect(0, 0, width, height);
     
-    for (let attempt = 1; attempt <= attempts; attempt++) {
-      try {
-        return await operation();
-      } catch (error) {
-        if (attempt === attempts) {
-          throw this.enhanceError(error, attempt);
+    // ビデオの描画（中央クロップ）
+    this.drawCroppedImage(ctx, this.video, width, height);
+    
+    // オーバーレイの描画（透過保持）
+    ctx.globalCompositeOperation = 'source-over';
+    this.drawCroppedImage(ctx, this.overlay, width, height);
+    
+    // Blobに変換
+    return new Promise((resolve, reject) => {
+      canvas.toBlob((blob) => {
+        if (blob) {
+          resolve(blob);
+        } else {
+          reject(new Error('画像の生成に失敗しました'));
         }
-        
-        const delay = this.retryDelays[attempt - 1] || 4000;
-        await this.delay(delay);
-      }
-    }
+      }, 'image/png', quality);
+    });
   }
 
-  enhanceError(error, attempts) {
-    const enhancedError = new Error(error.message);
-    enhancedError.originalError = error;
-    enhancedError.attempts = attempts;
-    enhancedError.type = this.classifyError(error);
-    enhancedError.timestamp = new Date().toISOString();
-    return enhancedError;
+  drawCroppedImage(ctx, source, targetWidth, targetHeight) {
+    const sourceWidth = source.videoWidth || source.naturalWidth;
+    const sourceHeight = source.videoHeight || source.naturalHeight;
+    
+    if (!sourceWidth || !sourceHeight) {
+      throw new Error('ソース画像のサイズを取得できません');
+    }
+    
+    const sourceRatio = sourceWidth / sourceHeight;
+    const targetRatio = targetWidth / targetHeight;
+    
+    let sx, sy, sw, sh;
+    
+    if (sourceRatio > targetRatio) {
+      // ソースの方が横長：横をクロップ
+      sh = sourceHeight;
+      sw = sh * targetRatio;
+      sx = (sourceWidth - sw) / 2;
+      sy = 0;
+    } else {
+      // ソースの方が縦長：縦をクロップ
+      sw = sourceWidth;
+      sh = sw / targetRatio;
+      sx = 0;
+      sy = (sourceHeight - sh) / 2;
+    }
+    
+    ctx.drawImage(source, sx, sy, sw, sh, 0, 0, targetWidth, targetHeight);
   }
 
-  classifyError(error) {
-    if (error.name === 'NotAllowedError') {
-      return ErrorHandler.ERROR_TYPES.PERMISSION_DENIED;
-    }
-    if (error.name === 'NotFoundError') {
-      return ErrorHandler.ERROR_TYPES.CAMERA_ACCESS;
-    }
-    if (error.message && error.message.includes('network')) {
-      return ErrorHandler.ERROR_TYPES.NETWORK_ERROR;
-    }
-    return ErrorHandler.ERROR_TYPES.RESOURCE_ERROR;
+  downloadImage(blob) {
+    const timestamp = new Date().toISOString()
+      .replace(/[-:T]/g, '')
+      .slice(0, 14);
+    
+    const link = document.createElement('a');
+    link.download = `matsudaya_photo_${timestamp}.png`;
+    link.href = URL.createObjectURL(blob);
+    
+    // 一時的にDOMに追加してクリック
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    // メモリクリーンアップ
+    setTimeout(() => URL.revokeObjectURL(link.href), 100);
+  }
+
+  async flashEffect() {
+    this.cameraFlash.classList.add('flash-active');
+    await this.delay(100);
+    this.cameraFlash.classList.remove('flash-active');
+  }
+
+  showProgress(message) {
+    this.progressOverlay.textContent = message;
+    this.progressOverlay.style.display = 'block';
+  }
+
+  hideProgress() {
+    this.progressOverlay.style.display = 'none';
+  }
+
+  showError(message) {
+    console.error(message);
+    this.errorDisplay.innerHTML = `
+      <p>${message}</p>
+      <button onclick="this.parentElement.style.display='none'">閉じる</button>
+    `;
+    this.errorDisplay.style.display = 'block';
+    
+    // 5秒後に自動で閉じる
+    setTimeout(() => {
+      this.errorDisplay.style.display = 'none';
+    }, 5000);
   }
 
   delay(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
-  }
-}
-
-/**
- * カメラ制御クラス
- */
-class CameraController {
-  constructor(config, errorHandler, memoryManager) {
-    this.config = config;
-    this.errorHandler = errorHandler;
-    this.memoryManager = memoryManager;
-    this.stream = null;
-    this.isInitialized = false;
-  }
-
-  async initialize(video) {
-    if (this.isInitialized) return this.stream;
-
-    return this.errorHandler.withRetry(async () => {
-      this.stream = await navigator.mediaDevices.getUserMedia(
-        this.config.get('camera')
-      );
-      
-      video.srcObject = this.stream;
-      
-      await new Promise((resolve, reject) => {
-        video.addEventListener('loadedmetadata', resolve, { once: true });
-        video.addEventListener('error', reject, { once: true });
-        
-        const timeout = setTimeout(() => {
-          reject(new Error('Video loading timeout'));
-        }, 10000);
-        
-        video.addEventListener('loadedmetadata', () => {
-          clearTimeout(timeout);
-        }, { once: true });
-      });
-      
-      this.isInitialized = true;
-      this.memoryManager.registerResource(this.stream, () => this.cleanup());
-      
-      return this.stream;
-    });
-  }
-
-  pause() {
-    if (this.stream) {
-      this.stream.getVideoTracks().forEach(track => {
-        track.enabled = false;
-      });
-    }
-  }
-
-  resume() {
-    if (this.stream) {
-      this.stream.getVideoTracks().forEach(track => {
-        track.enabled = true;
-      });
-    }
   }
 
   cleanup() {
     if (this.stream) {
       this.stream.getTracks().forEach(track => track.stop());
       this.stream = null;
-      this.isInitialized = false;
     }
   }
 }
 
-/**
- * Canvas描画最適化クラス（透過対応修正）
- */
-class CanvasRenderer {
-  constructor(config, memoryManager) {
-    this.config = config;
-    this.memoryManager = memoryManager;
-  }
-
-  async renderPhoto(video, overlay) {
-    const { width: HD_W, height: HD_H, quality, format } = this.config.get('capture');
-    
-    const canvas = this.memoryManager.getCanvas(HD_W, HD_H);
-    // 透過保持のためalpha: trueに変更
-    const ctx = canvas.getContext('2d', { 
-      alpha: true, // 透過保持のため true に変更
-      willReadFrequently: false 
-    });
-
-    try {
-      // 背景を透明にクリア（白で塗りつぶさない）
-      ctx.clearRect(0, 0, HD_W, HD_H);
-      
-      // 背景（ビデオ）の描画
-      this.drawVideoToCanvas(ctx, video, HD_W, HD_H);
-      
-      // オーバーレイの描画（透過保持）
-      this.drawOverlayToCanvas(ctx, overlay, HD_W, HD_H);
-
-      // Blobとして返す
-      const blob = await this.canvasToBlob(canvas, format, quality);
-      
-      return blob;
-    } finally {
-      // Canvasをプールに戻す
-      this.memoryManager.releaseCanvas(canvas);
-    }
-  }
-
-  drawVideoToCanvas(ctx, video, canvasWidth, canvasHeight) {
-    const cropData = this.calculateCropData(
-      video.videoWidth, 
-      video.videoHeight, 
-      canvasWidth, 
-      canvasHeight
-    );
-
-    ctx.drawImage(
-      video,
-      cropData.srcX, cropData.srcY, cropData.srcW, cropData.srcH,
-      0, 0, canvasWidth, canvasHeight
-    );
-  }
-
-  drawOverlayToCanvas(ctx, overlay, canvasWidth, canvasHeight) {
-    const cropData = this.calculateCropData(
-      overlay.naturalWidth, 
-      overlay.naturalHeight, 
-      canvasWidth, 
-      canvasHeight
-    );
-
-    // 透過PNG保持のため、globalCompositeOperationを設定
-    ctx.globalCompositeOperation = 'source-over';
-    
-    ctx.drawImage(
-      overlay,
-      cropData.srcX, cropData.srcY, cropData.srcW, cropData.srcH,
-      0, 0, canvasWidth, canvasHeight
-    );
-  }
-
-  calculateCropData(sourceWidth, sourceHeight, targetWidth, targetHeight) {
-    const sourceRatio = sourceWidth / sourceHeight;
-    const targetRatio = targetWidth / targetHeight;
-
-    let srcW, srcH, srcX, srcY;
-    
-    if (sourceRatio > targetRatio) {
-      srcH = sourceHeight;
-      srcW = srcH * targetRatio;
-      srcX = (sourceWidth - srcW) / 2;
-      srcY = 0;
-    } else {
-      srcW = sourceWidth;
-      srcH = srcW / targetRatio;
-      srcX = 0;
-      srcY = (sourceHeight - srcH) / 2;
-    }
-
-    return { srcX, srcY, srcW, srcH };
-  }
-
-  async canvasToBlob(canvas, format, quality) {
-    if (canvas.convertToBlob) {
-      return await canvas.convertToBlob({ type: format, quality });
-    }
-    
-    return new Promise((resolve, reject) => {
-      canvas.toBlob((blob) => {
-        if (blob) {
-          resolve(blob);
-        } else {
-          reject(new Error('Failed to create blob'));
-        }
-      }, format, quality);
-    });
-  }
-}
-
-/**
- * UI制御クラス
- */
-class UIController {
-  constructor(config, errorHandler) {
-    this.config = config;
-    this.errorHandler = errorHandler;
-    this.progressContainer = null;
-  }
-
-  showProgress(message, progress = 0) {
-    if (!this.progressContainer) {
-      this.progressContainer = this.createProgressContainer();
-      document.body.appendChild(this.progressContainer);
-    }
-
-    const messageEl = this.progressContainer.querySelector('.progress-message');
-    const fillEl = this.progressContainer.querySelector('.progress-fill');
-    
-    messageEl.textContent = message;
-    fillEl.style.width = `${progress}%`;
-  }
-
-  updateProgress(progress) {
-    if (this.progressContainer) {
-      const fillEl = this.progressContainer.querySelector('.progress-fill');
-      fillEl.style.width = `${progress}%`;
-    }
-  }
-
-  hideProgress() {
-    if (this.progressContainer) {
-      this.progressContainer.remove();
-      this.progressContainer = null;
-    }
-  }
-
-  createProgressContainer() {
-    const container = document.createElement('div');
-    container.className = 'progress-container';
-    container.innerHTML = `
-      <div class="progress-message">処理中...</div>
-      <div class="progress-bar">
-        <div class="progress-fill"></div>
-      </div>
-    `;
-    return container;
-  }
-
-  async showCaptureAnimation() {
-    const flash = document.createElement('div');
-    flash.className = 'camera-flash';
-    document.body.appendChild(flash);
-    
-    // フラッシュアニメーションの実行
-    requestAnimationFrame(() => {
-      flash.classList.add('flash-animation');
-    });
-
-    // ハプティックフィードバック
-    await this.triggerHapticFeedback();
-    
-    // アニメーション終了後に要素を削除
-    setTimeout(() => {
-      if (flash.parentElement) {
-        flash.remove();
-      }
-    }, 200);
-  }
-
-  async triggerHapticFeedback() {
-    if ('vibrate' in navigator) {
-      try {
-        navigator.vibrate([50]);
-      } catch (error) {
-        console.warn('Haptic feedback failed:', error);
-      }
-    }
-  }
-
-  showError(message, error) {
-    console.error(message, error);
-    
-    const errorDiv = document.createElement('div');
-    errorDiv.className = 'error-message';
-    
-    const errorType = error.type || 'unknown';
-    const userMessage = this.getUserFriendlyMessage(errorType, message);
-    
-    errorDiv.innerHTML = `
-      <h3>エラーが発生しました</h3>
-      <p>${userMessage}</p>
-      <button onclick="this.parentElement.remove()" type="button">閉じる</button>
-    `;
-    
-    document.body.appendChild(errorDiv);
-    
-    // 自動削除
-    setTimeout(() => {
-      if (errorDiv.parentElement) {
-        errorDiv.remove();
-      }
-    }, this.config.get('ui').errorDisplayTime);
-  }
-
-  getUserFriendlyMessage(errorType, originalMessage) {
-    const messages = {
-      'permission_denied': 'カメラの使用が許可されていません。ブラウザの設定を確認してください。',
-      'camera_access': 'カメラにアクセスできません。他のアプリでカメラが使用されていないか確認してください。',
-      'network_error': 'ネットワークエラーが発生しました。接続を確認してください。',
-      'capture_error': '撮影に失敗しました。もう一度お試しください。',
-      'resource_error': 'リソースの読み込みに失敗しました。',
-      'unknown': originalMessage
-    };
-    
-    return messages[errorType] || originalMessage;
-  }
-
-  debounce(func, wait) {
-    let timeout;
-    return function executedFunction(...args) {
-      const later = () => {
-        clearTimeout(timeout);
-        func.apply(this, args);
-      };
-      clearTimeout(timeout);
-      timeout = setTimeout(later, wait);
-    };
-  }
-}
-
-/**
- * ファイル操作クラス
- */
-class FileManager {
-  constructor(config) {
-    this.config = config;
-  }
-
-  sanitizeFileName(filename) {
-    return filename.replace(/[^a-zA-Z0-9_-]/g, '_');
-  }
-
-  generateTimestamp() {
-    return new Date().toISOString()
-      .replace(/[-:T]/g, '')
-      .slice(0, 14);
-  }
-
-  downloadBlob(blob, baseFilename = 'matsudaya_photo') {
-    const timestamp = this.generateTimestamp();
-    const filename = this.sanitizeFileName(`${baseFilename}_${timestamp}.png`);
-    
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    
-    link.download = filename;
-    link.href = url;
-    link.style.display = 'none';
-    
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    
-    // メモリリーク防止
-    setTimeout(() => {
-      URL.revokeObjectURL(url);
-    }, 100);
-  }
-}
-
-/**
- * パフォーマンス監視クラス
- */
-class PerformanceMonitor {
-  constructor() {
-    this.metrics = new Map();
-    this.setupObserver();
-  }
-
-  setupObserver() {
-    if ('PerformanceObserver' in window) {
-      const observer = new PerformanceObserver((list) => {
-        list.getEntries().forEach((entry) => {
-          if (entry.name.startsWith('photo-frame-')) {
-            this.metrics.set(entry.name, entry.duration);
-          }
-        });
-      });
-      
-      observer.observe({ entryTypes: ['measure'] });
-    }
-  }
-
-  startMeasure(name) {
-    performance.mark(`${name}-start`);
-  }
-
-  endMeasure(name) {
-    const startMark = `${name}-start`;
-    const endMark = `${name}-end`;
-    const measureName = `photo-frame-${name}`;
-    
-    performance.mark(endMark);
-    performance.measure(measureName, startMark, endMark);
-    
-    return this.metrics.get(measureName);
-  }
-
-  getMetrics() {
-    return new Map(this.metrics);
-  }
-}
-
-/**
- * メインアプリケーションクラス
- */
-class PhotoFrameApp {
-  constructor() {
-    // 依存性の初期化
-    this.config = new ConfigManager();
-    this.memoryManager = new MemoryManager();
-    this.errorHandler = new ErrorHandler(this.config);
-    this.performanceMonitor = new PerformanceMonitor();
-    
-    // コントローラーの初期化
-    this.camera = new CameraController(this.config, this.errorHandler, this.memoryManager);
-    this.renderer = new CanvasRenderer(this.config, this.memoryManager);
-    this.ui = new UIController(this.config, this.errorHandler);
-    this.fileManager = new FileManager(this.config);
-    
-    // DOM要素の取得
-    this.video = document.getElementById('video-feed');
-    this.overlay = document.getElementById('character-overlay');
-    this.captureButton = document.getElementById('capture-button');
-    
-    // 状態管理
-    this.isCapturing = false;
-    this.isInitialized = false;
-    
-    // 初期化
-    this.initialize();
-  }
-
-  async initialize() {
-    try {
-      this.performanceMonitor.startMeasure('initialization');
-      
-      await this.preloadResources();
-      await this.initializeCamera();
-      this.setupEventListeners();
-      
-      this.isInitialized = true;
-      
-      const initTime = this.performanceMonitor.endMeasure('initialization');
-      console.log(`App initialized in ${initTime}ms`);
-      
-    } catch (error) {
-      this.ui.showError('アプリケーションの初期化に失敗しました', error);
-    }
-  }
-
-  async preloadResources() {
-    const promises = [
-      this.preloadOverlayImage(),
-      this.warmupCanvas()
-    ];
-    
-    const results = await Promise.allSettled(promises);
-    
-    // 失敗したリソースをログ出力
-    results.forEach((result, index) => {
-      if (result.status === 'rejected') {
-        console.warn(`Resource ${index} failed to preload:`, result.reason);
-      }
-    });
-  }
-
-  async preloadOverlayImage() {
-    return new Promise((resolve, reject) => {
-      if (this.overlay.complete && this.overlay.naturalWidth > 0) {
-        resolve();
-        return;
-      }
-
-      const timeout = setTimeout(() => {
-        reject(new Error('Image loading timeout'));
-      }, 5000);
-
-      this.overlay.addEventListener('load', () => {
-        clearTimeout(timeout);
-        resolve();
-      }, { once: true });
-
-      this.overlay.addEventListener('error', (error) => {
-        clearTimeout(timeout);
-        reject(error);
-      }, { once: true });
-    });
-  }
-
-  async warmupCanvas() {
-    // Canvas機能のウォームアップ（透過対応）
-    const canvas = this.memoryManager.getCanvas(100, 100);
-    const ctx = canvas.getContext('2d', { alpha: true }); // 透過対応
-    ctx.clearRect(0, 0, 100, 100); // 白で塗りつぶさず透明にクリア
-    this.memoryManager.releaseCanvas(canvas);
-  }
-
-  async initializeCamera() {
-    await this.camera.initialize(this.video);
-  }
-
-  setupEventListeners() {
-    const debounceDelay = this.config.get('ui').debounceDelay;
-    
-    // 撮影ボタン
-    this.captureButton.addEventListener('click', 
-      this.ui.debounce(this.handleCapture.bind(this), debounceDelay)
-    );
-
-    // 画面向き変更
-    window.addEventListener('orientationchange', 
-      this.ui.debounce(this.handleOrientationChange.bind(this), 100)
-    );
-
-    // ページ可視性変更
-    document.addEventListener('visibilitychange', 
-      this.handleVisibilityChange.bind(this)
-    );
-
-    // メモリ圧迫時の対応
-    window.addEventListener('beforeunload', this.cleanup.bind(this));
-    
-    // メモリ警告の監視（対応ブラウザのみ）
-    if ('memory' in performance) {
-      this.monitorMemory();
-    }
-  }
-
-  async handleCapture() {
-    if (this.isCapturing || !this.isInitialized) return;
-    
-    try {
-      this.isCapturing = true;
-      this.captureButton.classList.add('button-loading');
-      
-      this.performanceMonitor.startMeasure('capture');
-      
-      // プログレス表示
-      this.ui.showProgress('撮影準備中...', 10);
-      
-      // フラッシュアニメーション
-      await this.ui.showCaptureAnimation();
-      
-      this.ui.updateProgress(30);
-      this.ui.showProgress('画像を処理中...', 30);
-      
-      // 撮影処理
-      const imageBlob = await this.renderer.renderPhoto(this.video, this.overlay);
-      
-      this.ui.updateProgress(80);
-      this.ui.showProgress('ダウンロード準備中...', 80);
-      
-      // ダウンロード
-      this.fileManager.downloadBlob(imageBlob);
-      
-      this.ui.updateProgress(100);
-      
-      const captureTime = this.performanceMonitor.endMeasure('capture');
-      console.log(`Capture completed in ${captureTime}ms`);
-      
-      // 成功フィードバック
-      setTimeout(() => this.ui.hideProgress(), 500);
-      
-    } catch (error) {
-      this.ui.hideProgress();
-      this.ui.showError('撮影に失敗しました', error);
-    } finally {
-      this.isCapturing = false;
-      this.captureButton.classList.remove('button-loading');
-    }
-  }
-
-  handleOrientationChange() {
-    // 画面向き変更後のレイアウト調整
-    setTimeout(() => {
-      if (this.video.videoWidth && this.video.videoHeight) {
-        console.log('Orientation changed, layout adjusted');
-      }
-    }, 100);
-  }
-
-  handleVisibilityChange() {
-    if (document.hidden) {
-      this.camera.pause();
-    } else if (this.isInitialized) {
-      this.camera.resume();
-    }
-  }
-
-  monitorMemory() {
-    setInterval(() => {
-      if (performance.memory) {
-        const memInfo = performance.memory;
-        const usageRatio = memInfo.usedJSHeapSize / memInfo.jsHeapSizeLimit;
-        
-        // メモリ使用率が80%を超えたら強制クリーンアップ
-        if (usageRatio > 0.8) {
-          console.warn('High memory usage detected, forcing cleanup');
-          this.memoryManager.forceCleanup();
-        }
-      }
-    }, 30000); // 30秒ごとにチェック
-  }
-
-  cleanup() {
-    console.log('Cleaning up resources...');
-    
-    this.camera.cleanup();
-    this.memoryManager.forceCleanup();
-    this.ui.hideProgress();
-    
-    // パフォーマンスメトリクスの出力
-    const metrics = this.performanceMonitor.getMetrics();
-    if (metrics.size > 0) {
-      console.log('Performance metrics:', Object.fromEntries(metrics));
-    }
-  }
-
-  // デバッグ用メソッド
-  getDebugInfo() {
-    return {
-      isInitialized: this.isInitialized,
-      isCapturing: this.isCapturing,
-      cameraActive: this.camera.stream !== null,
-      memoryMetrics: performance.memory || 'Not available',
-      performanceMetrics: Object.fromEntries(this.performanceMonitor.getMetrics())
-    };
-  }
-}
-
-// アプリケーションの開始
+// アプリケーション開始
 let app;
 document.addEventListener('DOMContentLoaded', () => {
-  app = new PhotoFrameApp();
+  app = new ImprovedPhotoFrame();
 });
 
-// グローバルエラーハンドラー
-window.addEventListener('error', (event) => {
-  console.error('Global error:', event.error);
-  if (app && app.ui) {
-    app.ui.showError('予期しないエラーが発生しました', event.error);
-  }
+// グローバルエラーハンドリング
+window.addEventListener('error', (e) => {
+  console.error('Global error:', e.error);
 });
 
-window.addEventListener('unhandledrejection', (event) => {
-  console.error('Unhandled promise rejection:', event.reason);
-  if (app && app.ui) {
-    app.ui.showError('非同期処理でエラーが発生しました', event.reason);
-  }
+window.addEventListener('unhandledrejection', (e) => {
+  console.error('Unhandled rejection:', e.reason);
 });
-
-// デバッグ用（開発時のみ）
-if (typeof window !== 'undefined') {
-  window.photoFrameDebug = () => {
-    return app ? app.getDebugInfo() : 'App not initialized';
-  };
-}
 
 </script>
 </body>
