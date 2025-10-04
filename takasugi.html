@@ -1,329 +1,124 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>ARフォト撮影1</title>
-    <style>
-        /* 全体の初期設定と安全領域対応 */
-        html, body {
-            margin: 0;
-            padding: 0;
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-            background-color: #000;
-        }
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sinsaku Takasugi Photo Frame</title>
 
-        /* メインコンテナ：画面全体にフィット */
-        .ar-container {
-            position: relative;
-            width: 100vw;
-            height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
+<style>
+  body { margin:0; overflow:hidden; background:#000; }
 
-        /* 映像要素：画面いっぱいに表示（上下切れてもOK） */
-        #video-feed {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            min-width: 100%;
-            min-height: 100%;
-            width: auto;
-            height: auto;
-            transform: translate(-50%, -50%);
-            object-fit: cover; /* 画面にフィット（はみ出しOK） */
-            display: none; /* 初期は非表示（読み込み完了後に表示） */
-        }
+  /* スマホ画面にベタ表示 */
+  #video-feed, #character-overlay {
+    position:fixed; top:0; left:0; width:100%; height:100%; object-fit:cover;
+    z-index:1;
+  }
 
-        /* キャラクター画像コンテナ */
-        .overlay-container {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            pointer-events: none; /* 下の要素（カメラ映像）をクリックできるように */
-        }
+  #character-overlay { z-index:2; }
 
-        /* キャラクター画像：画面幅いっぱいに表示し、縦横比を維持して中央に配置 */
-        #character-image {
-            width: 100%; /* 画面幅いっぱいに表示 */
-            height: auto; /* 縦横比を維持しつつ高さを自動調整 */
-            max-height: 100vh; /* 縦長すぎる場合に画面高さを超えないように一応制限 */
-            object-fit: contain; /* 縦横比を維持 */
-        }
+  #ui-container {
+    position:fixed;
+    bottom:280px;              /* 下から280px上に配置 */
+    width:100%;
+    display:flex;
+    justify-content:center;
+    z-index:3;
+  }
 
-        /* UIコンテナ：画面下部に固定、安全領域対応 */
-        .ui-container {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            padding-bottom: constant(safe-area-inset-bottom); /* iOS対応 (旧形式) */
-            padding-bottom: env(safe-area-inset-bottom); /* iOS/Android対応 (推奨) */
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 10;
-            padding-top: 20px;
-            background: linear-gradient(to top, rgba(0,0,0,0.7), rgba(0,0,0,0)); /* グラデーションで下部UIを見やすく */
-        }
-
-        /* 撮影ボタン：クロスブラウザで一貫したサイズと位置 (vw単位で統一) */
-        #capture-button {
-            width: 15vw; /* 画面幅の15% */
-            height: 15vw; /* 画面幅の15% (正円維持のため) */
-            border-radius: 50%;
-            background-color: white;
-            border: 5px solid rgba(255, 255, 255, 0.5);
-            cursor: pointer;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
-            transition: background-color 0.2s;
-            position: relative; /* 中央配置を維持 */
-        }
-
-        #capture-button:active {
-            background-color: #ddd;
-        }
-
-        /* ローディングインジケータ */
-        .loading-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.8);
-            color: white;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 20;
-            font-size: 1.2em;
-        }
-
-        /* カメラ非対応/エラーメッセージ */
-        .error-message {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            color: white;
-            padding: 20px;
-            background-color: rgba(255, 0, 0, 0.7);
-            border-radius: 8px;
-            z-index: 30;
-            text-align: center;
-            display: none;
-        }
-
-        /* Canvas要素は非表示 */
-        #capture-canvas {
-            display: none;
-        }
-    </style>
+  #capture-button {
+    /* サイズ修正: 撮影ボタン (#capture-button) のサイズは、15vw (ビューポート幅の15%) に固定する。 */
+    /* 15vw の正円ボタンに調整 */
+    width: 15vw;
+    height: 15vw; /* 幅と同じにして正円にする */
+    padding: 0; /* paddingを0にして width/height のみでサイズを制御 */
+    font-size: 0; /* ボタン内のテキストは非表示/代替としてアイコンは残す場合は調整が必要 */
+    border-radius: 50%; /* 正円にする */
+    cursor:pointer;
+    background:#fff;
+    color:#333;
+    border:3px solid #333;
+    box-shadow:0 6px 12px rgba(0,0,0,0.3);
+    /* アイコンを中央に配置するための調整 */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  
+  /* ボタン内のアイコン/テキストのサイズ調整 */
+  #capture-button::before {
+    content: "📸";
+    font-size: 6vw; /* 15vw に収まるように調整 */
+  }
+</style>
 </head>
+
 <body>
+<video id="video-feed" autoplay playsinline></video>
+<img id="character-overlay" src="pf-takasugi2.png" alt="高杉晋作">
+<div id="ui-container"><button id="capture-button">📸 撮影</button></div>
 
-    <div class="ar-container">
-        <video id="video-feed" playsinline autoplay muted></video>
+<script>
+const video = document.getElementById('video-feed');
+const overlay = document.getElementById('character-overlay');
+const captureButton = document.getElementById('capture-button');
 
-        <div class="overlay-container">
-            <img id="character-image" src="pf-takasugi2.png" alt="キャラクター" crossorigin="anonymous">
-        </div>
+// 背面カメラ（高解像度を希望）
+navigator.mediaDevices.getUserMedia({
+  video: { facingMode: "environment", width: { ideal: 2436 }, height: { ideal: 1125 } }
+}).then(stream => { video.srcObject = stream; })
+  .catch(err => alert("カメラアクセスエラー: " + err));
 
-        <div class="ui-container">
-            <button id="capture-button" aria-label="撮影"></button>
-        </div>
+// 撮影処理（画面中央を基準にHD切り出し）
+captureButton.addEventListener('click', () => {
+  const HD_W = 1080;   // 切り出し幅
+  const HD_H = 1920;   // 切り出し高さ
+  const canvas = document.createElement('canvas');
+  canvas.width = HD_W;
+  canvas.height = HD_H;
+  const ctx = canvas.getContext('2d');
 
-        <div id="loading-overlay" class="loading-overlay">カメラを起動中...</div>
+  // video の中央を切り出す
+  const videoRatio = video.videoWidth / video.videoHeight;
+  const canvasRatio = HD_W / HD_H;
 
-        <div id="error-message" class="error-message"></div>
+  let srcW, srcH, srcX, srcY;
+  if(videoRatio > canvasRatio){
+    srcH = video.videoHeight;
+    srcW = srcH * canvasRatio;
+    srcX = (video.videoWidth - srcW)/2;
+    srcY = 0;
+  } else {
+    srcW = video.videoWidth;
+    srcH = srcW / canvasRatio;
+    srcX = 0;
+    srcY = (video.videoHeight - srcH)/2;
+  }
+  ctx.drawImage(video, srcX, srcY, srcW, srcH, 0, 0, HD_W, HD_H);
 
-        <canvas id="capture-canvas"></canvas>
-    </div>
+  // キャラクター画像も中央基準で切り出す
+  const imgRatio = overlay.naturalWidth / overlay.naturalHeight;
+  let imgW, imgH, imgX, imgY;
+  if(imgRatio > canvasRatio){
+    imgH = overlay.naturalHeight;
+    imgW = imgH * canvasRatio;
+    imgX = (overlay.naturalWidth - imgW)/2;
+    imgY = 0;
+  } else {
+    imgW = overlay.naturalWidth;
+    imgH = imgW / canvasRatio;
+    imgX = 0;
+    imgY = (overlay.naturalHeight - imgH)/2;
+  }
+  ctx.drawImage(overlay, imgX, imgY, imgW, imgH, 0, 0, HD_W, HD_H);
 
-    <script>
-        const video = document.getElementById('video-feed');
-        const characterImage = document.getElementById('character-image');
-        const captureButton = document.getElementById('capture-button');
-        const canvas = document.getElementById('capture-canvas');
-        const loadingOverlay = document.getElementById('loading-overlay');
-        const errorMessage = document.getElementById('error-message');
-        const ctx = canvas.getContext('2d');
-
-        // 撮影画像の設定 (フルHD: 1920x1080)
-        const CAPTURE_WIDTH = 1920;
-        const CAPTURE_HEIGHT = 1080;
-
-        /**
-         * 1. カメラ映像の開始
-         */
-        async function startCamera() {
-            try {
-                // 背面カメラを優先 (environment)
-                const constraints = {
-                    video: {
-                        facingMode: { exact: 'environment' }, // 背面カメラ指定
-                        width: { ideal: CAPTURE_WIDTH },
-                        height: { ideal: CAPTURE_HEIGHT }
-                    }
-                };
-
-                // カメラアクセス許可
-                const stream = await navigator.mediaDevices.getUserMedia(constraints);
-                video.srcObject = stream;
-
-                video.onloadedmetadata = () => {
-                    video.play();
-                    loadingOverlay.style.display = 'none';
-                    video.style.display = 'block';
-                    captureButton.disabled = false;
-                };
-
-            } catch (err) {
-                console.error("カメラへのアクセスでエラーが発生しました:", err);
-                loadingOverlay.style.display = 'none';
-                errorMessage.style.display = 'block';
-                errorMessage.textContent = 'カメラへのアクセスが許可されていません。設定を確認するか、対応ブラウザでアクセスしてください。エラー: ' + err.name;
-                captureButton.disabled = true;
-            }
-        }
-
-        /**
-         * 2. 撮影処理とダウンロード
-         */
-        captureButton.addEventListener('click', () => {
-            captureButton.disabled = true;
-            loadingOverlay.style.display = 'flex';
-            
-            // Canvasを撮影画像のフルHDサイズに設定
-            canvas.width = CAPTURE_WIDTH;
-            canvas.height = CAPTURE_HEIGHT;
-
-            // 撮影の実行
-            drawFrame();
-        });
-
-        /**
-         * 3. 画像合成ロジック (カメラ映像 + キャラクター画像)
-         */
-        function drawFrame() {
-            // カメラ映像の縦横比
-            const videoRatio = video.videoWidth / video.videoHeight;
-            // 撮影画像（Canvas）の縦横比 (1920/1080)
-            const captureRatio = CAPTURE_WIDTH / CAPTURE_HEIGHT;
-
-            let sx, sy, sWidth, sHeight; // カメラ映像からの切り出し位置とサイズ
-
-            // 6. 撮影画像は画面中央を基準に切り出し (フルHD: 1920x1080)
-            if (videoRatio > captureRatio) {
-                // カメラ映像の方が横長の場合 (左右が余る)
-                sHeight = video.videoHeight;
-                sWidth = video.videoHeight * captureRatio;
-                sx = (video.videoWidth - sWidth) / 2; // 左右を均等に切り捨て
-                sy = 0;
-            } else {
-                // カメラ映像の方が縦長の場合 (上下が余る)
-                sWidth = video.videoWidth;
-                sHeight = video.videoWidth / captureRatio;
-                sx = 0;
-                sy = (video.videoHeight - sHeight) / 2; // 上下を均等に切り捨て
-            }
-
-            // 映像をCanvasに描画 (中央を1920x1080で切り出し)
-            ctx.drawImage(video, sx, sy, sWidth, sHeight, 0, 0, CAPTURE_WIDTH, CAPTURE_HEIGHT);
-
-            // --- キャラクター画像の描画ロジック ---
-
-            const charNaturalWidth = characterImage.naturalWidth;
-            const charNaturalHeight = characterImage.naturalHeight;
-            const charRatio = charNaturalWidth / charNaturalHeight;
-
-            // キャラクター画像をCanvas全体に収まる最大サイズで描画 (縦横比維持)
-            
-            let charDrawWidth, charDrawHeight;
-
-            // Canvasの縦横比とキャラクターの縦横比を比較
-            if (charRatio > captureRatio) {
-                // キャラクターがCanvasより横長の場合: 幅をCanvas幅に合わせる
-                charDrawWidth = CAPTURE_WIDTH;
-                charDrawHeight = charDrawWidth / charRatio;
-            } else {
-                // キャラクターがCanvasより縦長の場合: 高さをCanvas高さに合わせる
-                charDrawHeight = CAPTURE_HEIGHT;
-                charDrawWidth = charDrawHeight * charRatio;
-            }
-
-            // Canvas中央に配置
-            const charX = (CAPTURE_WIDTH - charDrawWidth) / 2;
-            const charY = (CAPTURE_HEIGHT - charDrawHeight) / 2;
-
-            // 画像をCanvasに描画 (中央に大きく表示)
-            ctx.drawImage(characterImage, charX, charY, charDrawWidth, charDrawHeight);
-
-            // ダウンロード
-            downloadImage();
-        }
-
-        /**
-         * 4. 画像のダウンロード
-         */
-        function downloadImage() {
-            canvas.toBlob((blob) => {
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = generateFileName();
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-                
-                loadingOverlay.style.display = 'none';
-                captureButton.disabled = false;
-            }, 'image/png'); // PNG形式で保存
-        }
-
-        /**
-         * 5. タイムスタンプ付きファイル名生成
-         */
-        function generateFileName() {
-            const now = new Date();
-            // 形式: yyyy-mm-dd HH-MM-SS.png
-            const year = now.getFullYear();
-            const month = String(now.getMonth() + 1).padStart(2, '0');
-            const day = String(now.getDate()).padStart(2, '0');
-            const hour = String(now.getHours()).padStart(2, '0');
-            const minute = String(now.getMinutes()).padStart(2, '0');
-            const second = String(now.getSeconds()).padStart(2, '0');
-
-            return `${year}-${month}-${day} ${hour}-${minute}-${second}.png`;
-        }
-
-        // ページロード時にカメラを起動
-        window.onload = () => {
-            // キャラクター画像がまだロードされていない場合は待機
-            if (!characterImage.complete) {
-                characterImage.onload = startCamera;
-                characterImage.onerror = () => {
-                    console.error("キャラクター画像の読み込みに失敗しました。ファイル名を確認してください。");
-                    errorMessage.textContent = 'キャラクター画像 (pf-takasugi2.png) の読み込みに失敗しました。';
-                    errorMessage.style.display = 'block';
-                    loadingOverlay.style.display = 'none';
-                };
-            } else {
-                startCamera();
-            }
-        };
-
-    </script>
+  // タイムスタンプ付きファイル名
+  const now = new Date();
+  const timestamp = now.toISOString().replace(/[-:T]/g,"").slice(0,14);
+  const link = document.createElement('a');
+  link.download = `matsudaya_photo_${timestamp}.png`;
+  link.href = canvas.toDataURL("image/png");
+  link.click();
+});
+</script>
 </body>
 </html>
