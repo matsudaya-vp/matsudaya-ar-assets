@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>ARフォト撮影</title>
+    <title>ARフォト撮影1</title>
     <style>
         /* 全体の初期設定と安全領域対応 */
         html, body {
@@ -52,7 +52,7 @@
             pointer-events: none; /* 下の要素（カメラ映像）をクリックできるように */
         }
 
-        /* キャラクター画像 (画面幅いっぱいに表示) */
+        /* キャラクター画像：画面幅いっぱいに表示し、縦横比を維持して中央に配置 */
         #character-image {
             width: 100%; /* 画面幅いっぱいに表示 */
             height: auto; /* 縦横比を維持しつつ高さを自動調整 */
@@ -159,7 +159,7 @@
         const errorMessage = document.getElementById('error-message');
         const ctx = canvas.getContext('2d');
 
-        // 撮影画像の設定 (フルHD)
+        // 撮影画像の設定 (フルHD: 1920x1080)
         const CAPTURE_WIDTH = 1920;
         const CAPTURE_HEIGHT = 1080;
 
@@ -241,28 +241,32 @@
             // 映像をCanvasに描画 (中央を1920x1080で切り出し)
             ctx.drawImage(video, sx, sy, sWidth, sHeight, 0, 0, CAPTURE_WIDTH, CAPTURE_HEIGHT);
 
-            // キャラクター画像をCanvas中央に描画
+            // --- キャラクター画像の描画ロジック ---
+
             const charNaturalWidth = characterImage.naturalWidth;
             const charNaturalHeight = characterImage.naturalHeight;
             const charRatio = charNaturalWidth / charNaturalHeight;
 
-            // キャラクター画像の表示サイズを計算 (Canvasの幅基準で縦横比維持)
-            // まず、Canvasの幅いっぱいにキャラクター画像を合わせることを試みる
-            let charDrawWidth = CAPTURE_WIDTH;
-            let charDrawHeight = charDrawWidth / charRatio;
-
-            // もし高さがCanvasの高さを超える場合、高さを基準に再計算し、幅も調整
-            // これにより、縦長の画像でもCanvas内に収まるように調整される
-            if (charDrawHeight > CAPTURE_HEIGHT) {
-                charDrawHeight = CAPTURE_HEIGHT; // Canvasの高さに合わせる
-                charDrawWidth = charDrawHeight * charRatio; // 縦横比を維持して幅を再計算
-            }
+            // キャラクター画像をCanvas全体に収まる最大サイズで描画 (縦横比維持)
             
+            let charDrawWidth, charDrawHeight;
+
+            // Canvasの縦横比とキャラクターの縦横比を比較
+            if (charRatio > captureRatio) {
+                // キャラクターがCanvasより横長の場合: 幅をCanvas幅に合わせる
+                charDrawWidth = CAPTURE_WIDTH;
+                charDrawHeight = charDrawWidth / charRatio;
+            } else {
+                // キャラクターがCanvasより縦長の場合: 高さをCanvas高さに合わせる
+                charDrawHeight = CAPTURE_HEIGHT;
+                charDrawWidth = charDrawHeight * charRatio;
+            }
+
             // Canvas中央に配置
             const charX = (CAPTURE_WIDTH - charDrawWidth) / 2;
             const charY = (CAPTURE_HEIGHT - charDrawHeight) / 2;
 
-            // 画像をCanvasに描画
+            // 画像をCanvasに描画 (中央に大きく表示)
             ctx.drawImage(characterImage, charX, charY, charDrawWidth, charDrawHeight);
 
             // ダウンロード
@@ -293,6 +297,7 @@
          */
         function generateFileName() {
             const now = new Date();
+            // 形式: yyyy-mm-dd HH-MM-SS.png
             const year = now.getFullYear();
             const month = String(now.getMonth() + 1).padStart(2, '0');
             const day = String(now.getDate()).padStart(2, '0');
@@ -300,7 +305,6 @@
             const minute = String(now.getMinutes()).padStart(2, '0');
             const second = String(now.getSeconds()).padStart(2, '0');
 
-            // 形式: yyyy-mm-dd HH-MM-SS.png
             return `${year}-${month}-${day} ${hour}-${minute}-${second}.png`;
         }
 
