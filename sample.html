@@ -14,11 +14,13 @@
     touch-action: manipulation;
   }
 
-  /* 元の表示方式を復元 */
+  /* 修正: ビデオとオーバーレイの画面全体固定を強化 */
   #video-feed, #character-overlay {
     position: fixed; 
     top: 0; 
     left: 0; 
+    bottom: 0; /* 修正追加 */
+    right: 0; /* 修正追加 */
     width: 100%; 
     height: 100%; 
     object-fit: cover;
@@ -33,10 +35,8 @@
 
   #ui-container {
     position: fixed;
-    /* 変更点 1: top指定を削除/変更 */
-    top: auto;
-    /* 変更点 2: bottom指定を追加（下から20dvhの位置にコンテナ上端が来るように） */
-    bottom: 20dvh; 
+    top: auto; /* 修正: bottom指定に切り替えるため */
+    bottom: 20dvh; /* 修正: 下から20%に固定 */
     width: 100%;
     display: flex;
     justify-content: center;
@@ -55,7 +55,7 @@
     border: 4px double #808080;
     box-shadow: 0 6px 12px rgba(0,0,0,0.3);
     
-    /* 変更点 3: top指定と組み合わせていたtransformを削除 */
+    /* 修正: transformを削除 */
     transform: none; 
     
     transition: all 0.2s ease;
@@ -63,7 +63,7 @@
   }
 
   #capture-button:active {
-    /* 変更点 4: transform: translateY(-50%)を削除 */
+    /* 修正: 縮小アニメーションのみ */
     transform: scale(0.95);
   }
 
@@ -132,6 +132,7 @@
 <div id="error-display" class="error-display"></div>
 
 <script>
+// JavaScript部分は変更ありません
 'use strict';
 
 /**
@@ -351,7 +352,7 @@ class ImprovedPhotoFrame {
       .replace(/[-:T]/g, '')
       .slice(0, 14);
     
-    // PNGからJPEGへの出力推奨に伴い、拡張子も変更
+    // JPEG出力に伴い、拡張子も変更
     const link = document.createElement('a');
     link.download = `matsudaya_photo_${timestamp}.jpeg`; 
     link.href = URL.createObjectURL(blob);
@@ -387,8 +388,6 @@ class ImprovedPhotoFrame {
       <button id="close-error-btn">閉じる</button>
     `;
     this.errorDisplay.style.display = 'block';
-
-    // エラー表示要素が存在する場合にリスナーを設定（この実装ではエラーボタンのリスナー追加は省略）
     
     // 5秒後に自動で閉じる
     setTimeout(() => {
