@@ -14,13 +14,11 @@
     touch-action: manipulation;
   }
 
-  /* 修正: ビデオとオーバーレイの画面全体固定を強化 */
+  /* 元の表示方式を復元 */
   #video-feed, #character-overlay {
     position: fixed; 
     top: 0; 
     left: 0; 
-    bottom: 0; /* 修正追加 */
-    right: 0; /* 修正追加 */
     width: 100%; 
     height: 100%; 
     object-fit: cover;
@@ -35,8 +33,10 @@
 
   #ui-container {
     position: fixed;
-    top: auto; /* 修正: bottom指定に切り替えるため */
-    bottom: 20dvh; /* 修正: 下から20%に固定 */
+    /* 変更: top指定を削除/変更 */
+    top: auto;
+    /* 変更: 下から20%に固定し、モバイルでの安定性を確保 */
+    bottom: 20dvh; 
     width: 100%;
     display: flex;
     justify-content: center;
@@ -55,7 +55,7 @@
     border: 4px double #808080;
     box-shadow: 0 6px 12px rgba(0,0,0,0.3);
     
-    /* 修正: transformを削除 */
+    /* 変更: bottom指定に合わせたため、transformを削除 */
     transform: none; 
     
     transition: all 0.2s ease;
@@ -63,7 +63,7 @@
   }
 
   #capture-button:active {
-    /* 修正: 縮小アニメーションのみ */
+    /* 変更: transform: translateY(-50%)を削除 */
     transform: scale(0.95);
   }
 
@@ -132,7 +132,6 @@
 <div id="error-display" class="error-display"></div>
 
 <script>
-// JavaScript部分は変更ありません
 'use strict';
 
 /**
@@ -294,7 +293,7 @@ class ImprovedPhotoFrame {
     // 透過保持のためのContext設定
     const ctx = canvas.getContext('2d', { alpha: true });
     
-    // 背景を透明にクリア
+    // 背景を透明にクリア（重要：白で塗りつぶさない）
     ctx.clearRect(0, 0, width, height);
     
     // ビデオの描画（中央クロップ）
@@ -312,7 +311,7 @@ class ImprovedPhotoFrame {
         } else {
           reject(new Error('画像の生成に失敗しました'));
         }
-      }, 'image/jpeg', quality); 
+      }, 'image/jpeg', quality); // PNGからJPEGへ変更を推奨
     });
   }
 
@@ -347,14 +346,12 @@ class ImprovedPhotoFrame {
   }
 
   downloadImage(blob) {
-    // ファイル名を「matsudaya_photo_」で始めることでブランディングを維持
     const timestamp = new Date().toISOString()
       .replace(/[-:T]/g, '')
       .slice(0, 14);
     
-    // JPEG出力に伴い、拡張子も変更
     const link = document.createElement('a');
-    link.download = `matsudaya_photo_${timestamp}.jpeg`; 
+    link.download = `matsudaya_photo_${timestamp}.jpeg`; // 拡張子をjpegに変更
     link.href = URL.createObjectURL(blob);
     
     // 一時的にDOMに追加してクリック
@@ -385,7 +382,7 @@ class ImprovedPhotoFrame {
     console.error(message);
     this.errorDisplay.innerHTML = `
       <p>${message}</p>
-      <button id="close-error-btn">閉じる</button>
+      <button onclick="this.parentElement.style.display='none'">閉じる</button>
     `;
     this.errorDisplay.style.display = 'block';
     
