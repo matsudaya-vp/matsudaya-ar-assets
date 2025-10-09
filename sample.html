@@ -31,13 +31,13 @@
     background: transparent;
   }
 
-  #ui-container {
-    position: fixed;
-    bottom: calc(20dvh + 1vw); /* 画面の下端から20dvh + 1vwの位置に設定 */
-    width: 100%;
-    display: flex;
-    justify-content: center;
-    z-index: 3;
+#ui-container {
+  position: fixed; /* ★これが非常に重要です！★ */
+  bottom: calc(20dvh + 1vw); /* 例として、下から20%の位置 */
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  z-index: 3;
 }
 
   #capture-button {
