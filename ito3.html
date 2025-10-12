@@ -1,6 +1,16 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
+
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-KQF1C4JVNB"></script>
+<script>
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+gtag('config', 'G-KQF1C4JVNB');
+</script>
+
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Ito Hirobumi Photo Frame</title>
@@ -237,6 +247,17 @@ class ImprovedPhotoFrame {
       
       // フラッシュエフェクト
       await this.flashEffect();
+
+
+      // ★★★ ここにGA4イベント計測コードを追加 ★★★
+      if (typeof gtag === 'function') {
+          gtag('event', 'photo_taken', {
+              'event_category': 'ar_capture',
+              'event_label': '伊藤博文_双写'
+          });
+          console.log('GA4 event: photo_taken sent');
+      }
+      // ★★★ 追加ここまで ★★★
       
       // 撮影処理
       this.showProgress('画像処理中...');
