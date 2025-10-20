@@ -1,241 +1,38 @@
-<script>
-'use strict';
-
-class ImprovedPhotoFrame {
-  constructor() {
-    this.video = document.getElementById('video-feed');
-    this.overlay = document.getElementById('character-overlay');
-    this.captureButton = document.getElementById('capture-button');
-    this.progressOverlay = document.getElementById('progress-overlay');
-    this.cameraFlash = document.getElementById('camera-flash');
-    this.errorDisplay = document.getElementById('error-display');
-
-    this.config = {
-      capture: { width: 1080, height: 1920, quality: 0.95 },
-      camera: {
-        video: {
-          facingMode: 'environment',
-          width: { ideal: 1920 },
-          height: { ideal: 1080 }
-        }
-      }
-    };
-
-    this.isCapturing = false;
-    this.stream = null;
-    this.isOldDevice = /Android [0-8]\./.test(navigator.userAgent);
-    this.canvasMode = null;
-
-    this.init();
-  }
-
-  async init() {
-    try {
-      await this.initCamera();
-      await this.waitForOverlay();
-      this.setupDisplayMode();
-      this.setupEvents();
-      console.log('App initialized successfully');
-    } catch (error) {
-      this.showError('初期化に失敗しました: ' + error.message);
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Canvasテスト</title>
+  <style>
+    body {
+      margin: 0;
+      background: #222;
+      overflow: hidden;
     }
-  }
-
-  async initCamera() {
-    try {
-      this.stream = await navigator.mediaDevices.getUserMedia(this.config.camera);
-      this.video.srcObject = this.stream;
-
-      return new Promise((resolve, reject) => {
-        this.video.onloadedmetadata = () => resolve();
-        this.video.onerror = () => reject(new Error('ビデオ読み込みエラー'));
-        setTimeout(() => reject(new Error('カメラ初期化タイムアウト')), 10000);
-      });
-    } catch (error) {
-      throw new Error('カメラアクセスエラー: ' + error.message);
+    canvas {
+      display: block;
+      width: 100vw;
+      height: 100vh;
     }
-  }
+  </style>
+</head>
+<body>
+  <canvas id="canvas"></canvas>
+  <script>
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
 
-  async waitForOverlay() {
-    if (this.overlay.complete) return;
-    return new Promise((resolve, reject) => {
-      this.overlay.onload = () => resolve();
-      this.overlay.onerror = () => reject(new Error('オーバーレイ画像の読み込みに失敗'));
-      setTimeout(() => reject(new Error('画像読み込みタイムアウト')), 5000);
-    });
-  }
+    // 背景
+    ctx.fillStyle = "#004488";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  setupDisplayMode() {
-    if (this.isOldDevice) {
-      console.log('旧端末モード: Canvas合成を使用');
-      this.canvasMode = document.createElement('canvas');
-      this.canvasMode.id = 'canvas-mode';
-      this.canvasMode.style.position = 'fixed';
-      this.canvasMode.style.top = '0';
-      this.canvasMode.style.left = '0';
-      this.canvasMode.style.width = '100%';
-      this.canvasMode.style.height = '100%';
-      this.canvasMode.style.zIndex = '2';
-      document.body.appendChild(this.canvasMode);
-
-      this.ctx = this.canvasMode.getContext('2d', { alpha: true });
-      requestAnimationFrame(() => this.drawLoop());
-    } else {
-      console.log('通常モード: video + img レイヤーで表示');
-    }
-  }
-
-  drawLoop() {
-    if (!this.ctx) return;
-    const width = this.canvasMode.width = this.video.videoWidth || 1080;
-    const height = this.canvasMode.height = this.video.videoHeight || 1920;
-
-    this.ctx.clearRect(0, 0, width, height);
-    try {
-      this.ctx.drawImage(this.video, 0, 0, width, height);
-      this.ctx.drawImage(this.overlay, 0, 0, width, height);
-    } catch (e) {
-      // 古い端末では描画中にエラーが出ることもある
-    }
-    requestAnimationFrame(() => this.drawLoop());
-  }
-
-  setupEvents() {
-    let lastClick = 0;
-    this.captureButton.addEventListener('click', () => {
-      const now = Date.now();
-      if (now - lastClick < 300) return;
-      lastClick = now;
-      this.handleCapture();
-    });
-
-    document.addEventListener('visibilitychange', () => {
-      if (this.stream) {
-        const tracks = this.stream.getVideoTracks();
-        tracks.forEach(track => track.enabled = !document.hidden);
-      }
-    });
-
-    window.addEventListener('beforeunload', () => this.cleanup());
-  }
-
-  async handleCapture() {
-    if (this.isCapturing) return;
-
-    try {
-      this.isCapturing = true;
-      this.captureButton.classList.add('button-processing');
-      this.showProgress('撮影中...');
-      await this.flashEffect();
-
-      if (typeof gtag === 'function') {
-        gtag('event', 'photo_taken', { event_category: 'ar_capture', event_label: 'サンプル_双写' });
-      }
-
-      this.showProgress('画像処理中...');
-      const blob = await this.capturePhoto();
-
-      this.showProgress('保存中...');
-      this.downloadImage(blob);
-
-      this.hideProgress();
-      if (navigator.vibrate) navigator.vibrate(50);
-    } catch (error) {
-      this.hideProgress();
-      this.showError('撮影に失敗しました: ' + error.message);
-    } finally {
-      this.isCapturing = false;
-      this.captureButton.classList.remove('button-processing');
-    }
-  }
-
-  async capturePhoto() {
-    const canvas = document.createElement('canvas');
-    const { width, height, quality } = this.config.capture;
-    canvas.width = width;
-    canvas.height = height;
-    const ctx = canvas.getContext('2d', { alpha: true });
-    ctx.clearRect(0, 0, width, height);
-
-    const source = this.isOldDevice ? this.canvasMode : this.video;
-    this.drawCroppedImage(ctx, source, width, height);
-    this.drawCroppedImage(ctx, this.overlay, width, height);
-
-    return new Promise((resolve, reject) => {
-      canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('画像生成失敗')), 'image/png', quality);
-    });
-  }
-
-  drawCroppedImage(ctx, source, targetWidth, targetHeight) {
-    const sw = source.videoWidth || source.naturalWidth || source.width;
-    const sh = source.videoHeight || source.naturalHeight || source.height;
-    if (!sw || !sh) return;
-
-    const sr = sw / sh;
-    const tr = targetWidth / targetHeight;
-    let sx, sy, sWidth, sHeight;
-
-    if (sr > tr) {
-      sHeight = sh;
-      sWidth = sh * tr;
-      sx = (sw - sWidth) / 2;
-      sy = 0;
-    } else {
-      sWidth = sw;
-      sHeight = sw / tr;
-      sx = 0;
-      sy = (sh - sHeight) / 2;
-    }
-
-    ctx.drawImage(source, sx, sy, sWidth, sHeight, 0, 0, targetWidth, targetHeight);
-  }
-
-  downloadImage(blob) {
-    const timestamp = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14);
-    const link = document.createElement('a');
-    link.download = `matsudaya_photo_${timestamp}.png`;
-    link.href = URL.createObjectURL(blob);
-
-    if (/Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent)) {
-      window.open(link.href, '_blank');
-    } else {
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    }
-    setTimeout(() => URL.revokeObjectURL(link.href), 200);
-  }
-
-  async flashEffect() {
-    this.cameraFlash.classList.add('flash-active');
-    await new Promise(r => setTimeout(r, 100));
-    this.cameraFlash.classList.remove('flash-active');
-  }
-
-  showProgress(msg) {
-    this.progressOverlay.textContent = msg;
-    this.progressOverlay.style.display = 'block';
-  }
-
-  hideProgress() {
-    this.progressOverlay.style.display = 'none';
-  }
-
-  showError(msg) {
-    console.error(msg);
-    this.errorDisplay.innerHTML = `<p>${msg}</p><button onclick="this.parentElement.style.display='none'">閉じる</button>`;
-    this.errorDisplay.style.display = 'block';
-    setTimeout(() => { this.errorDisplay.style.display = 'none'; }, 5000);
-  }
-
-  cleanup() {
-    if (this.stream) {
-      this.stream.getTracks().forEach(track => track.stop());
-      this.stream = null;
-    }
-  }
-}
-
-let app;
-document.addEventListener('DOMContentLoaded', () => app = new ImprovedPhotoFrame());
-</script>
+    // テスト文字
+    ctx.fillStyle = "#fff";
+    ctx.font = "bold 40px sans-serif";
+    ctx.fillText("Canvas動作テスト", 50, 100);
+  </script>
+</body>
+</html>
