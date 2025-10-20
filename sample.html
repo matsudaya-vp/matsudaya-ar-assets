@@ -3,24 +3,61 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>カメラ確認テスト</title>
+  <title>AR透過オーバーレイテスト</title>
   <style>
-    body { margin: 0; background: #000; overflow: hidden; }
-    video { width: 100vw; height: 100vh; object-fit: cover; }
+    body {
+      margin: 0;
+      overflow: hidden;
+      background: #000;
+    }
+    #canvas {
+      width: 100vw;
+      height: 100vh;
+      display: block;
+    }
   </style>
 </head>
 <body>
-  <video id="video" autoplay playsinline></video>
+  <canvas id="canvas"></canvas>
+
   <script>
-    (async () => {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
-        const video = document.getElementById("video");
-        video.srcObject = stream;
-      } catch (e) {
-        document.body.innerHTML = "<p style='color:white;'>カメラ取得に失敗：" + e.message + "</p>";
-      }
-    })();
+  window.onload = async () => {
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const video = document.createElement('video');
+    video.autoplay = true;
+    video.playsInline = true;
+
+    // カメラ起動
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+      video.srcObject = stream;
+    } catch (err) {
+      alert("カメラが利用できません: " + err.message);
+      return;
+    }
+
+    // オーバーレイ画像を読み込み
+    const overlay = new Image();
+    overlay.src = "overlay.png"; // ←透過PNGを同じフォルダに置いてください
+
+    // 映像と画像が両方準備できたら描画開始
+    Promise.all([
+      new Promise(resolve => video.addEventListener('loadeddata', resolve, { once: true })),
+      new Promise(resolve => overlay.addEventListener('load', resolve, { once: true }))
+    ]).then(() => {
+      // Canvasサイズをvideoに合わせる
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+
+      const draw = () => {
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        ctx.drawImage(overlay, 0, 0, canvas.width, canvas.height);
+        requestAnimationFrame(draw);
+      };
+      draw();
+    });
+  };
   </script>
 </body>
 </html>
