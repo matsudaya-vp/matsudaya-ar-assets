@@ -51,7 +51,8 @@ gtag('config', 'G-KQF1C4JVNB');
 
 #ui-container {
   position: fixed;
-  bottom: calc(8.5dvh + 1vw); /* 例として、下から20%の位置 */
+  /* 修正点1: 撮影ボタンのレイアウト崩れ対策として、bottom値をより安定した単位に変更 */
+  bottom: 10vh; /* calc(8.5dvh + 1vw) の代わりに、ビューポートの高さ10%に設定 */
   width: 100%;
   display: flex;
   justify-content: center;
@@ -302,14 +303,10 @@ class ImprovedPhotoFrame {
     // 透過保持のためのContext設定
     const ctx = canvas.getContext('2d', { alpha: true });
     
-    // ★★★ 透過初期化処理の強化（ここを変更） ★★★
-    // 1. 背景を完全に透明な色で塗りつぶし、確実に透明を初期化する
-    ctx.fillStyle = 'rgba(0, 0, 0, 0)';
-    ctx.fillRect(0, 0, width, height);
-    
-    // 2. 背景を透明にクリア（念のため元のコードを残し、安全性を高める）
-    ctx.clearRect(0, 0, width, height); 
-    // ★★★ 変更ここまで ★★★
+    // 修正点2: 透過性を確実に保持するため、明示的なclearRectのみを実行
+    // 古い端末で背景が黒や白になるのは、clearRectを無視してデフォルトの背景色（透明でない）で初期化される可能性があるため
+    // 前回のfillRect(0,0,0,0)は透明を白として扱うブラウザで白になる原因になるため削除
+    ctx.clearRect(0, 0, width, height); // 背景を透明にクリア
     
     // ビデオの描画（中央クロップ）
     this.drawCroppedImage(ctx, this.video, width, height);
@@ -320,6 +317,7 @@ class ImprovedPhotoFrame {
     
     // Blobに変換
     return new Promise((resolve, reject) => {
+      // PNG形式を指定し、透過情報を保持
       canvas.toBlob((blob) => {
         if (blob) {
           resolve(blob);
