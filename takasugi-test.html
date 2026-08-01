@@ -409,7 +409,7 @@ class ImprovedPhotoFrame {
       const blob = await this.capturePhoto();
 
       this.showProgress('保存中...');
-      this.downloadImage(blob);
+      await this.shareOrDownloadImage(blob);
 
       this.hideProgress();
       this.showCaptureFeedback();
@@ -481,13 +481,11 @@ class ImprovedPhotoFrame {
     ctx.drawImage(source, sx, sy, sw, sh, 0, 0, targetWidth, targetHeight);
   }
 
-  downloadImage(blob) {
-    const timestamp = new Date().toISOString()
-      .replace(/[-:T]/g, '')
-      .slice(0, 14);
+  downloadImage(blob, filename) {
+    const finalName = filename || `matsudaya_photo_${new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14)}.png`;
 
     const link = document.createElement('a');
-    link.download = `matsudaya_photo_${timestamp}.png`;
+    link.download = finalName;
     link.href = URL.createObjectURL(blob);
 
     document.body.appendChild(link);
@@ -495,6 +493,58 @@ class ImprovedPhotoFrame {
     document.body.removeChild(link);
 
     setTimeout(() => URL.revokeObjectURL(link.href), 100);
+  }
+
+  /**
+   * 撮影直後、OS標準の共有シートを自動で開く（写真アプリへの保存が直感的にできる）
+   * 非対応環境（PCブラウザ・古いOS等）は従来通りダウンロードフォルダへ保存
+   */
+  async shareOrDownloadImage(blob) {
+    const timestamp = new Date().toISOString()
+      .replace(/[-:T]/g, '')
+      .slice(0, 14);
+    const filename = `matsudaya_photo_${timestamp}.png`;
+    const file = new File([blob], filename, { type: 'image/png' });
+
+    const canUseShare =
+      typeof navigator.share === 'function' &&
+      typeof navigator.canShare === 'function' &&
+      navigator.canShare({ files: [file] });
+
+    if (canUseShare) {
+      try {
+        if (typeof gtag === 'function') {
+          gtag('event', 'share_sheet_shown', { event_category: 'ar_capture' });
+        }
+
+        await navigator.share({
+          files: [file],
+          title: '松田屋ホテル 幕末志士フォト',
+          text: '高杉晋作との記念撮影 #維新の徒'
+        });
+
+        if (typeof gtag === 'function') {
+          gtag('event', 'share_completed', { event_category: 'ar_capture' });
+        }
+        return;
+
+      } catch (error) {
+        // ユーザーが共有シートをキャンセルした場合はエラー扱いにしない
+        if (error.name === 'AbortError') {
+          if (typeof gtag === 'function') {
+            gtag('event', 'share_cancelled', { event_category: 'ar_capture' });
+          }
+          return;
+        }
+        // それ以外の失敗時はダウンロードにフォールバック
+        console.warn('共有に失敗、ダウンロードにフォールバックします:', error);
+        this.downloadImage(blob, filename);
+        return;
+      }
+    }
+
+    // Web Share API非対応環境（PCブラウザ等）
+    this.downloadImage(blob, filename);
   }
 
   async flashEffect() {
