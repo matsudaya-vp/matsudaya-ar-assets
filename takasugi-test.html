@@ -111,42 +111,71 @@ gtag('config', 'G-KQF1C4JVNB');
     display: none; /* クッション画面通過まで非表示 */
   }
 
-  /* ============ ②撮影ボタン（視認性改善） ============ */
+  /* ============ ②撮影ボタン（ネイティブカメラ風・輪郭のみ薄く色付け） ============ */
   #capture-button {
-    width: 20vw;
-    height: 20vw;
-    max-width: 96px;
-    max-height: 96px;
+    width: 18vw;
+    height: 18vw;
+    max-width: 84px;
+    max-height: 84px;
     padding: 0;
     border-radius: 50%;
     cursor: pointer;
-    background: #2E7D32; /* 塗りつぶし・松田屋グリーン */
-    color: #fff;
-    border: 4px solid #ffffff;
-    box-shadow: 0 6px 16px rgba(0,0,0,0.45);
+    background: rgba(255,255,255,0.18); /* ほぼ透明・従来のガラス風を踏襲 */
+    border: 3px solid rgba(46,125,50,0.85); /* 松田屋グリーンで輪郭のみ薄く色付け */
+    box-shadow: 0 0 0 2px rgba(46,125,50,0.25), 0 4px 12px rgba(0,0,0,0.35);
     transform: translateY(-50%); 
-    transition: all 0.2s ease;
+    transition: all 0.15s ease;
     user-select: none;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 2px;
+    position: relative;
   }
 
-  #capture-button .cam-icon {
-    font-size: 6.5vw;
-    line-height: 1;
-  }
-
-  #capture-button .cam-label {
-    font-size: 2.6vw;
-    font-weight: 600;
-    letter-spacing: 0.05em;
+  /* 内側の白い円（カメラアプリのシャッターボタン意匠） */
+  #capture-button::before {
+    content: '';
+    position: absolute;
+    top: 4px; left: 4px; right: 4px; bottom: 4px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.9);
+    transition: all 0.15s ease;
   }
 
   #capture-button:active {
-    transform: translateY(-50%) scale(0.95);
+    transform: translateY(-50%) scale(0.93);
+  }
+
+  #capture-button:active::before {
+    top: 8px; left: 8px; right: 8px; bottom: 8px;
+  }
+
+  /* 撮影完了フィードバック（チェックマーク） */
+  #capture-feedback {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0.6);
+    z-index: 20;
+    width: 22vw;
+    height: 22vw;
+    max-width: 110px;
+    max-height: 110px;
+    border-radius: 50%;
+    background: rgba(46,125,50,0.92);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  #capture-feedback.show {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+
+  #capture-feedback svg {
+    width: 50%;
+    height: 50%;
   }
 
   /* 改善機能のスタイル（既存踏襲） */
@@ -216,10 +245,14 @@ gtag('config', 'G-KQF1C4JVNB');
 <video id="video-feed" autoplay playsinline muted></video>
 <img id="character-overlay" src="img/pf-takasugi3.png" alt="高杉晋作">
 <div id="ui-container">
-  <button id="capture-button" aria-label="写真を撮影">
-    <span class="cam-icon">📸</span>
-    <span class="cam-label">撮影</span>
-  </button>
+  <button id="capture-button" aria-label="写真を撮影"></button>
+</div>
+
+<!-- 撮影完了フィードバック（チェックマーク） -->
+<div id="capture-feedback">
+  <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M4 12L9 17L20 6" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>
 </div>
 
 <!-- 改善機能の要素 -->
@@ -241,6 +274,8 @@ class ImprovedPhotoFrame {
     this.errorDisplay = document.getElementById('error-display');
     this.cushionScreen = document.getElementById('cushion-screen');
     this.startButton = document.getElementById('start-button');
+    this.captureFeedback = document.getElementById('capture-feedback');
+    this.audioCtx = null; // シャッター音用（初回タップ時に生成）
 
     this.config = {
       capture: { width: 1080, height: 1920, quality: 0.95 },
@@ -359,6 +394,7 @@ class ImprovedPhotoFrame {
       this.captureButton.classList.add('button-processing');
 
       this.showProgress('撮影中...');
+      this.playShutterSound();
       await this.flashEffect();
 
       if (typeof gtag === 'function') {
@@ -376,6 +412,7 @@ class ImprovedPhotoFrame {
       this.downloadImage(blob);
 
       this.hideProgress();
+      this.showCaptureFeedback();
 
       if (navigator.vibrate) {
         navigator.vibrate(50);
@@ -464,6 +501,55 @@ class ImprovedPhotoFrame {
     this.cameraFlash.classList.add('flash-active');
     await this.delay(100);
     this.cameraFlash.classList.remove('flash-active');
+  }
+
+  /**
+   * シャッター音を合成して再生（外部音声ファイル不要）
+   * 「カシャッ」を模した、短いクリック音2連打
+   */
+  playShutterSound() {
+    try {
+      if (!this.audioCtx) {
+        this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      const ctx = this.audioCtx;
+      if (ctx.state === 'suspended') ctx.resume();
+
+      const now = ctx.currentTime;
+
+      const clickAt = (time, freq, dur, gainPeak) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(freq, time);
+        gain.gain.setValueAtTime(0, time);
+        gain.gain.linearRampToValueAtTime(gainPeak, time + 0.005);
+        gain.gain.exponentialRampToValueAtTime(0.001, time + dur);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(time);
+        osc.stop(time + dur);
+      };
+
+      // 「カ」：短く高い
+      clickAt(now, 1800, 0.03, 0.35);
+      // 「シャッ」：わずかに遅れて低め・やや長め
+      clickAt(now + 0.045, 900, 0.06, 0.3);
+
+    } catch (e) {
+      // 音声再生に失敗しても撮影自体は継続（致命的エラーにしない）
+      console.warn('シャッター音の再生に失敗:', e);
+    }
+  }
+
+  /**
+   * 撮影完了フィードバック（チェックマークのポップ表示）
+   */
+  showCaptureFeedback() {
+    this.captureFeedback.classList.add('show');
+    setTimeout(() => {
+      this.captureFeedback.classList.remove('show');
+    }, 550);
   }
 
   showProgress(message) {
