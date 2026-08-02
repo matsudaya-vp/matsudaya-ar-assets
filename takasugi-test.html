@@ -434,15 +434,16 @@ class ImprovedPhotoFrame {
       this.showProgress('画像処理中...');
       const blob = await this.capturePhoto();
 
-      this.showProgress('保存中...');
-      await this.shareOrDownloadImage(blob);
-
+      // 撮影完了フィードバック（共有シートを開く前に表示）
       this.hideProgress();
       this.showCaptureFeedback();
-
       if (navigator.vibrate) {
         navigator.vibrate(50);
       }
+
+      this.showProgress('保存中...');
+      await this.shareOrDownloadImage(blob);
+      this.hideProgress();
 
     } catch (error) {
       this.hideProgress();
