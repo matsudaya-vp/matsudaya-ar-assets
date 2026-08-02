@@ -13,18 +13,17 @@ gtag('config', 'G-KQF1C4JVNB');
 
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Kido Takayoshi Frame</title>
+<title>木戸孝允 Photo Frame</title>
 
 <style>
-  /* 元の基本構造を維持 */
   body { 
     margin: 0; 
     overflow: hidden; 
     background: #000; 
     touch-action: manipulation;
+    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", sans-serif;
   }
 
-  /* 元の表示方式を復元 */
   #video-feed, #character-overlay {
     position: fixed; 
     top: 0; 
@@ -37,40 +36,172 @@ gtag('config', 'G-KQF1C4JVNB');
 
   #character-overlay { 
     z-index: 2; 
-    /* PNG透過保持 */
     background: transparent;
+    display: none; /* クッション画面通過まで非表示 */
   }
 
-#ui-container {
-  position: fixed;
-  bottom: calc(8.5dvh + 1vw);
-  width: 100%;
-  display: flex;
-  justify-content: center;
-  z-index: 3;
+  /* ============ ①クッション画面（確定デザイン：画像＋オーバーレイ） ============ */
+  #cushion-screen {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    z-index: 100;
+    background: #cfc9cd;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
+  #cushion-inner {
+    position: relative;
+    width: 100%;
+    max-width: 430px;
+    aspect-ratio: 1080 / 1920;
+    overflow: hidden;
+  }
+
+  #cushion-inner .top-image {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  /* 目標デザインから実測した座標(%)をそのまま使用 */
+  #cushion-inner .catch-copy {
+    position: absolute;
+    top: 82.0%;
+    left: 0; right: 0;
+    text-align: center;
+    font-size: 16.8px;
+    font-weight: 700;
+    color: #313230;
+    letter-spacing: 0.03em;
+  }
+
+  #cushion-inner .sub-note {
+    position: absolute;
+    top: 85.6%;
+    left: 0; right: 0;
+    text-align: center;
+    font-size: 10.3px;
+    color: #5b4d53;
+    line-height: 1.5;
+  }
+
+  #cushion-inner .button-wrap {
+    position: absolute;
+    top: 90.1%;
+    height: 4.6%;
+    left: 0; right: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+  #start-button {
+    height: 100%;
+    padding: 0 9%;
+    font-size: 15px;
+    font-weight: 700;
+    color: #fff;
+    background: #c01212;
+    border: none;
+    border-radius: 999px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.25);
+    cursor: pointer;
+    letter-spacing: 0.04em;
+  }
+
+  #start-button:active {
+    transform: scale(0.97);
+  }
+
+  #start-button:disabled {
+    opacity: 0.6;
+  }
+
+  /* ============ 通常UI ============ */
+  #ui-container {
+    position: fixed;
+    bottom: calc(8.5dvh + 1vw);
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    z-index: 3;
+    display: none; /* クッション画面通過まで非表示 */
+  }
+
+  /* ============ ②撮影ボタン（ネイティブカメラ風・輪郭のみ薄く色付け） ============ */
   #capture-button {
-    width: 15vw;
-    height: 15vw;
+    width: 18vw;
+    height: 18vw;
+    max-width: 84px;
+    max-height: 84px;
     padding: 0;
-    font-size: 0;
     border-radius: 50%;
     cursor: pointer;
-    background: #E0E0E0;
-    color: transparent; 
-    border: 4px double #808080;
-    box-shadow: 0 6px 12px rgba(0,0,0,0.3);
+    background: rgba(255,255,255,0.18); /* ほぼ透明・従来のガラス風を踏襲 */
+    border: 3px solid rgba(46,125,50,0.85); /* 松田屋グリーンで輪郭のみ薄く色付け */
+    box-shadow: 0 0 0 2px rgba(46,125,50,0.25), 0 4px 12px rgba(0,0,0,0.35);
     transform: translateY(-50%); 
-    transition: all 0.2s ease;
+    transition: all 0.15s ease;
     user-select: none;
+    position: relative;
+  }
+
+  /* 内側の白い円（カメラアプリのシャッターボタン意匠） */
+  #capture-button::before {
+    content: '';
+    position: absolute;
+    top: 4px; left: 4px; right: 4px; bottom: 4px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.9);
+    transition: all 0.15s ease;
   }
 
   #capture-button:active {
-    transform: translateY(-50%) scale(0.95);
+    transform: translateY(-50%) scale(0.93);
   }
 
-  /* 改善機能のスタイル */
+  #capture-button:active::before {
+    top: 8px; left: 8px; right: 8px; bottom: 8px;
+  }
+
+  /* 撮影完了フィードバック（チェックマーク） */
+  #capture-feedback {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0.6);
+    z-index: 20;
+    width: 22vw;
+    height: 22vw;
+    max-width: 110px;
+    max-height: 110px;
+    border-radius: 50%;
+    background: rgba(46,125,50,0.92);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  #capture-feedback.show {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+
+  #capture-feedback svg {
+    width: 50%;
+    height: 50%;
+  }
+
+  /* 改善機能のスタイル（既存踏襲） */
   .progress-overlay {
     position: fixed;
     bottom: 20px;
@@ -124,10 +255,30 @@ gtag('config', 'G-KQF1C4JVNB');
 </head>
 
 <body>
+
+<!-- ============ ①クッション画面 ============ -->
+<div id="cushion-screen">
+  <div id="cushion-inner">
+    <img class="top-image" src="img/top-kido.jpg" alt="木戸孝允と記念撮影のイメージ">
+    <div class="catch-copy">志士とのARフォト体験のはじまり</div>
+    <div class="sub-note">次の画面でカメラの使用許可を求められます</div>
+    <div class="button-wrap">
+      <button id="start-button">撮影をはじめる</button>
+    </div>
+  </div>
+</div>
+
 <video id="video-feed" autoplay playsinline muted></video>
 <img id="character-overlay" src="img/pf-kido1.png" alt="木戸孝允">
 <div id="ui-container">
   <button id="capture-button" aria-label="写真を撮影"></button>
+</div>
+
+<!-- 撮影完了フィードバック（チェックマーク） -->
+<div id="capture-feedback">
+  <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M4 12L9 17L20 6" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>
 </div>
 
 <!-- 改善機能の要素 -->
@@ -138,21 +289,20 @@ gtag('config', 'G-KQF1C4JVNB');
 <script>
 'use strict';
 
-/**
- * 改善されたPhotoFrameアプリ
- * 元の動作を保持しつつ、必要最小限の機能改善を実装
- */
 class ImprovedPhotoFrame {
   constructor() {
-    // DOM要素の取得
     this.video = document.getElementById('video-feed');
     this.overlay = document.getElementById('character-overlay');
     this.captureButton = document.getElementById('capture-button');
+    this.uiContainer = document.getElementById('ui-container');
     this.progressOverlay = document.getElementById('progress-overlay');
     this.cameraFlash = document.getElementById('camera-flash');
     this.errorDisplay = document.getElementById('error-display');
-    
-    // 設定
+    this.cushionScreen = document.getElementById('cushion-screen');
+    this.startButton = document.getElementById('start-button');
+    this.captureFeedback = document.getElementById('capture-feedback');
+    this.audioCtx = null; // シャッター音用（初回タップ時に生成）
+
     this.config = {
       capture: { width: 1080, height: 1920, quality: 0.95 },
       camera: { 
@@ -163,37 +313,67 @@ class ImprovedPhotoFrame {
         } 
       }
     };
-    
-    // 状態管理
+
     this.isCapturing = false;
     this.stream = null;
-    
-    // 初期化
-    this.init();
+
+    // クッション画面表示イベント（計測）
+    if (typeof gtag === 'function') {
+      gtag('event', 'cushion_screen_shown', { event_category: 'ar_capture' });
+    }
+
+    // ①クッション画面の「はじめる」タップをきっかけにカメラ起動
+    this.startButton.addEventListener('click', () => this.startFlow());
   }
 
-  async init() {
+  async startFlow() {
+    this.startButton.disabled = true;
+    this.startButton.textContent = '起動中...';
+
     try {
       await this.initCamera();
+      this.cushionScreen.style.display = 'none';
+      this.overlay.style.display = 'block';
+      this.uiContainer.style.display = 'flex';
+
       await this.waitForOverlay();
       this.setupEvents();
       console.log('App initialized successfully');
     } catch (error) {
-      this.showError('初期化に失敗しました: ' + error.message);
+      this.startButton.disabled = false;
+      this.startButton.textContent = '撮影をはじめる';
+      this.showError(error.message);
     }
   }
 
   async initCamera() {
+    // ①-a: 許可を求めた時点を計測
+    if (typeof gtag === 'function') {
+      gtag('event', 'camera_permission_requested', { event_category: 'ar_capture' });
+    }
+
     try {
       this.stream = await navigator.mediaDevices.getUserMedia(this.config.camera);
       this.video.srcObject = this.stream;
-      
+
+      // ①-b: 許可が下りた時点を計測
+      if (typeof gtag === 'function') {
+        gtag('event', 'camera_permission_granted', { event_category: 'ar_capture' });
+      }
+
       return new Promise((resolve, reject) => {
         this.video.onloadedmetadata = () => resolve();
         this.video.onerror = () => reject(new Error('ビデオ読み込みエラー'));
         setTimeout(() => reject(new Error('カメラ初期化タイムアウト')), 10000);
       });
     } catch (error) {
+      // ①-c: 拒否・失敗を計測
+      if (typeof gtag === 'function') {
+        gtag('event', 'camera_permission_denied', {
+          event_category: 'ar_capture',
+          event_label: error.name || 'unknown'
+        });
+      }
       if (error.name === 'NotAllowedError') {
         throw new Error('カメラの使用が許可されていません');
       }
@@ -203,7 +383,7 @@ class ImprovedPhotoFrame {
 
   async waitForOverlay() {
     if (this.overlay.complete) return;
-    
+
     return new Promise((resolve, reject) => {
       this.overlay.onload = () => resolve();
       this.overlay.onerror = () => reject(new Error('オーバーレイ画像の読み込みに失敗'));
@@ -212,16 +392,14 @@ class ImprovedPhotoFrame {
   }
 
   setupEvents() {
-    // 撮影ボタン（シンプルなデバウンス）
     let lastClick = 0;
     this.captureButton.addEventListener('click', (e) => {
       const now = Date.now();
-      if (now - lastClick < 300) return; // 300ms デバウンス
+      if (now - lastClick < 300) return;
       lastClick = now;
       this.handleCapture();
     });
 
-    // ページ可視性の制御
     document.addEventListener('visibilitychange', () => {
       if (this.stream) {
         const tracks = this.stream.getVideoTracks();
@@ -231,50 +409,42 @@ class ImprovedPhotoFrame {
       }
     });
 
-    // リソースクリーンアップ
     window.addEventListener('beforeunload', () => this.cleanup());
   }
 
   async handleCapture() {
     if (this.isCapturing) return;
-    
+
     try {
       this.isCapturing = true;
       this.captureButton.classList.add('button-processing');
-      
-      // プログレス表示
+
       this.showProgress('撮影中...');
-      
-      // フラッシュエフェクト
+      this.playShutterSound();
       await this.flashEffect();
 
-
-      // ★★★ ここにGA4イベント計測コードを追加 ★★★
       if (typeof gtag === 'function') {
-          gtag('event', 'photo_taken', {
-              'event_category': 'ar_capture',
-              'event_label': '木戸孝允_双写'
-          });
-          console.log('GA4 event: photo_taken sent');
+        gtag('event', 'photo_taken', {
+          'event_category': 'ar_capture',
+          'event_label': '木戸孝允_双写'
+        });
+        console.log('GA4 event: photo_taken sent');
       }
-      // ★★★ 追加ここまで ★★★
-      
-      // 撮影処理
+
       this.showProgress('画像処理中...');
       const blob = await this.capturePhoto();
-      
-      // ダウンロード
-      this.showProgress('保存中...');
-      this.downloadImage(blob);
-      
-      // 完了
+
+      // 撮影完了フィードバック（共有シートを開く前に表示）
       this.hideProgress();
-      
-      // ハプティックフィードバック
+      this.showCaptureFeedback();
       if (navigator.vibrate) {
         navigator.vibrate(50);
       }
-      
+
+      this.showProgress('保存中...');
+      await this.shareOrDownloadImage(blob);
+      this.hideProgress();
+
     } catch (error) {
       this.hideProgress();
       this.showError('撮影に失敗しました: ' + error.message);
@@ -287,24 +457,18 @@ class ImprovedPhotoFrame {
   async capturePhoto() {
     const canvas = document.createElement('canvas');
     const { width, height, quality } = this.config.capture;
-    
+
     canvas.width = width;
     canvas.height = height;
-    
-    // 透過保持のためのContext設定
+
     const ctx = canvas.getContext('2d', { alpha: true });
-    
-    // 背景を透明にクリア（重要：白で塗りつぶさない）
     ctx.clearRect(0, 0, width, height);
-    
-    // ビデオの描画（中央クロップ）
+
     this.drawCroppedImage(ctx, this.video, width, height);
-    
-    // オーバーレイの描画（透過保持）
+
     ctx.globalCompositeOperation = 'source-over';
     this.drawCroppedImage(ctx, this.overlay, width, height);
-    
-    // Blobに変換
+
     return new Promise((resolve, reject) => {
       canvas.toBlob((blob) => {
         if (blob) {
@@ -319,55 +483,150 @@ class ImprovedPhotoFrame {
   drawCroppedImage(ctx, source, targetWidth, targetHeight) {
     const sourceWidth = source.videoWidth || source.naturalWidth;
     const sourceHeight = source.videoHeight || source.naturalHeight;
-    
+
     if (!sourceWidth || !sourceHeight) {
       throw new Error('ソース画像のサイズを取得できません');
     }
-    
+
     const sourceRatio = sourceWidth / sourceHeight;
     const targetRatio = targetWidth / targetHeight;
-    
+
     let sx, sy, sw, sh;
-    
+
     if (sourceRatio > targetRatio) {
-      // ソースの方が横長：横をクロップ
       sh = sourceHeight;
       sw = sh * targetRatio;
       sx = (sourceWidth - sw) / 2;
       sy = 0;
     } else {
-      // ソースの方が縦長：縦をクロップ
       sw = sourceWidth;
       sh = sw / targetRatio;
       sx = 0;
       sy = (sourceHeight - sh) / 2;
     }
-    
+
     ctx.drawImage(source, sx, sy, sw, sh, 0, 0, targetWidth, targetHeight);
   }
 
-  downloadImage(blob) {
-    const timestamp = new Date().toISOString()
-      .replace(/[-:T]/g, '')
-      .slice(0, 14);
-    
+  downloadImage(blob, filename) {
+    const finalName = filename || `matsudaya_photo_${new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14)}.png`;
+
     const link = document.createElement('a');
-    link.download = `matsudaya_photo_${timestamp}.png`;
+    link.download = finalName;
     link.href = URL.createObjectURL(blob);
-    
-    // 一時的にDOMに追加してクリック
+
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    
-    // メモリクリーンアップ
+
     setTimeout(() => URL.revokeObjectURL(link.href), 100);
+  }
+
+  /**
+   * 撮影直後、OS標準の共有シートを自動で開く（写真アプリへの保存が直感的にできる）
+   * 非対応環境（PCブラウザ・古いOS等）は従来通りダウンロードフォルダへ保存
+   */
+  async shareOrDownloadImage(blob) {
+    const timestamp = new Date().toISOString()
+      .replace(/[-:T]/g, '')
+      .slice(0, 14);
+    const filename = `matsudaya_photo_${timestamp}.png`;
+    const file = new File([blob], filename, { type: 'image/png' });
+
+    const canUseShare =
+      typeof navigator.share === 'function' &&
+      typeof navigator.canShare === 'function' &&
+      navigator.canShare({ files: [file] });
+
+    if (canUseShare) {
+      try {
+        if (typeof gtag === 'function') {
+          gtag('event', 'share_sheet_shown', { event_category: 'ar_capture' });
+        }
+
+        await navigator.share({
+          files: [file],
+          title: '松田屋ホテル 幕末志士フォト',
+          text: '木戸孝允との記念撮影 #維新の徒'
+        });
+
+        if (typeof gtag === 'function') {
+          gtag('event', 'share_completed', { event_category: 'ar_capture' });
+        }
+        return;
+
+      } catch (error) {
+        // ユーザーが共有シートをキャンセルした場合はエラー扱いにしない
+        if (error.name === 'AbortError') {
+          if (typeof gtag === 'function') {
+            gtag('event', 'share_cancelled', { event_category: 'ar_capture' });
+          }
+          return;
+        }
+        // それ以外の失敗時はダウンロードにフォールバック
+        console.warn('共有に失敗、ダウンロードにフォールバックします:', error);
+        this.downloadImage(blob, filename);
+        return;
+      }
+    }
+
+    // Web Share API非対応環境（PCブラウザ等）
+    this.downloadImage(blob, filename);
   }
 
   async flashEffect() {
     this.cameraFlash.classList.add('flash-active');
     await this.delay(100);
     this.cameraFlash.classList.remove('flash-active');
+  }
+
+  /**
+   * シャッター音を合成して再生（外部音声ファイル不要）
+   * 「カシャッ」を模した、短いクリック音2連打
+   */
+  playShutterSound() {
+    try {
+      if (!this.audioCtx) {
+        this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      const ctx = this.audioCtx;
+      if (ctx.state === 'suspended') ctx.resume();
+
+      const now = ctx.currentTime;
+
+      const clickAt = (time, freq, dur, gainPeak) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(freq, time);
+        gain.gain.setValueAtTime(0, time);
+        gain.gain.linearRampToValueAtTime(gainPeak, time + 0.005);
+        gain.gain.exponentialRampToValueAtTime(0.001, time + dur);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(time);
+        osc.stop(time + dur);
+      };
+
+      // 「カ」：短く高い
+      clickAt(now, 1800, 0.03, 0.35);
+      // 「シャッ」：わずかに遅れて低め・やや長め
+      clickAt(now + 0.045, 900, 0.06, 0.3);
+
+    } catch (e) {
+      // 音声再生に失敗しても撮影自体は継続（致命的エラーにしない）
+      console.warn('シャッター音の再生に失敗:', e);
+    }
+  }
+
+  /**
+   * 撮影完了フィードバック（チェックマークのポップ表示）
+   */
+  showCaptureFeedback() {
+    this.captureFeedback.classList.add('show');
+    setTimeout(() => {
+      this.captureFeedback.classList.remove('show');
+    }, 550);
   }
 
   showProgress(message) {
@@ -386,8 +645,7 @@ class ImprovedPhotoFrame {
       <button onclick="this.parentElement.style.display='none'">閉じる</button>
     `;
     this.errorDisplay.style.display = 'block';
-    
-    // 5秒後に自動で閉じる
+
     setTimeout(() => {
       this.errorDisplay.style.display = 'none';
     }, 5000);
@@ -405,13 +663,11 @@ class ImprovedPhotoFrame {
   }
 }
 
-// アプリケーション開始
 let app;
 document.addEventListener('DOMContentLoaded', () => {
   app = new ImprovedPhotoFrame();
 });
 
-// グローバルエラーハンドリング
 window.addEventListener('error', (e) => {
   console.error('Global error:', e.error);
 });
